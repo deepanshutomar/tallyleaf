@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
+# Manual only: the live site is hosted on deepanshutomar.in.
+# To publish a copy on GitHub Pages: enable Settings → Pages → Source: GitHub Actions,
+# then Actions → "Deploy to GitHub Pages" → Run workflow.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

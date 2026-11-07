@@ -173,11 +173,11 @@ Opening `dist/index.html` by double-clicking won't work (browsers block the scan
 
 ## Put it online for free (GitHub Pages)
 
-The repository includes `.github/workflows/deploy.yml`, which builds the site and publishes it on every push to `main`.
+The repository includes `.github/workflows/deploy.yml`, which builds the site and publishes it to GitHub Pages when you run it (it doesn't run automatically). Every push runs `.github/workflows/ci.yml` instead, which tests and builds everything.
 
 1. Upload the project to a GitHub repository (see below).
 2. In the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Open the **Actions** tab and wait for *Deploy to GitHub Pages* to turn green (about a minute). If it ran before Pages was enabled, click *Re-run all jobs*.
+3. Open the **Actions** tab, choose *Deploy to GitHub Pages* → **Run workflow**, and wait for it to turn green (about a minute). Run it again whenever you want to publish changes; to publish on every push instead, add `push: branches: [main]` under `on:` in `deploy.yml`.
 4. Your site is at `https://<your-username>.github.io/<repository-name>/`. Share that link with students.
 
 ## Host it on your own website (Hostinger, cPanel or any Apache hosting)
