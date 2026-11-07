@@ -1,6 +1,6 @@
 import { fnv1a, stableStringify } from './hash';
 import type { Layout } from './layout';
-import { FILE_FORMAT, uid, type Batch, type Field, type FormDef, type Project, type Response, type Version } from './schema';
+import { FILE_FORMAT, uid, type Batch, type Field, type Flag, type FormDef, type Project, type Response, type Version } from './schema';
 
 export function fingerprint(layout: Pick<Layout, 'geometry' | 'fields' | 'pages'>): string {
   return fnv1a(stableStringify({ g: layout.geometry, f: layout.fields, n: layout.pages.length }));
@@ -104,4 +104,58 @@ export function missingPages(p: Project, r: Response): number[] {
 
 export function unresolvedCount(r: Response): number {
   return Object.keys(r.flags).length;
+}
+
+export type PageResult = {
+  serial: number;
+  fp: string;
+  page: number;
+  fields: Record<string, { value: number | string | null; flag?: Flag }>;
+  crops: Record<string, string>;
+};
+
+/** Put one scanned page into its participant's row. Pages can arrive in any order. */
+export function applyPage(p: Project, pr: PageResult, replace: boolean): { project: Project; status: 'added' | 'replaced' | 'duplicate' | 'conflict' } {
+  const responses = [...p.responses];
+  const i = responses.findIndex((r) => r.serial === pr.serial);
+  const now = new Date().toISOString();
+  const strip = <T,>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).filter(([k]) => !(k in pr.fields)));
+  const values = Object.fromEntries(Object.entries(pr.fields).map(([k, v]) => [k, v.value]));
+  const flags = Object.fromEntries(Object.entries(pr.fields).flatMap(([k, v]) => (v.flag ? [[k, v.flag]] : []))) as Record<string, Flag>;
+  let status: 'added' | 'replaced' = 'added';
+  if (i < 0) {
+    responses.push({ serial: pr.serial, fp: pr.fp, pages: [pr.page], values, flags, crops: pr.crops, scannedAt: now });
+  } else {
+    const r = responses[i];
+    if (r.fp !== pr.fp) return { project: p, status: 'conflict' };
+    if (r.pages.includes(pr.page)) {
+      if (!replace) return { project: p, status: 'duplicate' };
+      status = 'replaced';
+    }
+    responses[i] = {
+      ...r,
+      pages: [...new Set([...r.pages, pr.page])].sort((a, b) => a - b),
+      values: { ...strip(r.values), ...values },
+      flags: { ...strip(r.flags), ...flags },
+      crops: { ...strip(r.crops), ...pr.crops },
+      scannedAt: now,
+    };
+  }
+  responses.sort((a, b) => a.serial - b.serial);
+  return { project: { ...p, responses, updatedAt: now }, status };
+}
+
+export function setAnswer(p: Project, serial: number, v: string, value: number | string | null): Project {
+  return {
+    ...p,
+    updatedAt: new Date().toISOString(),
+    responses: p.responses.map((r) => {
+      if (r.serial !== serial) return r;
+      const flags = { ...r.flags };
+      const crops = { ...r.crops };
+      delete flags[v];
+      if (typeof value !== 'string') delete crops[v];
+      return { ...r, values: { ...r.values, [v]: value }, flags, crops };
+    }),
+  };
 }

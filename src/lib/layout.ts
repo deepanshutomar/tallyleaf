@@ -90,7 +90,7 @@ export function computeLayout(form: FormDef, fonts: Fonts): Layout {
         continue;
       case 'heading': {
         const lines = wrap(fonts, b.text, 12, CW, true);
-        ensure(lines.length * lh(12) + 12);
+        ensure(lines.length * lh(12) + 40);
         y += textLines(lines, X0, y, 12, true) + 1;
         ops.push({ t: 'line', x1: X0, y1: y, x2: X1, y2: y, stroke: 0.6, lw: 0.3 });
         y += 3;
