@@ -14,5 +14,6 @@ export default defineConfig({
       },
     },
   },
-  test: { environment: 'node' },
+  // The end-to-end tests render, photograph and scan real pages; shared CI machines need more than the 5 s default.
+  test: { environment: 'node', testTimeout: 120_000, hookTimeout: 120_000 },
 } as any);
