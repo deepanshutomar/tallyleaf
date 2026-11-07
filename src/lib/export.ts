@@ -90,18 +90,18 @@ export function spssSyntax(p: Project): string {
   const t = dataTable(p);
   const fields = new Map(allFields(p).map((f) => [f.var, f]));
   const q = (s: string) => `"${flat(s).replace(/"/g, "'").slice(0, 250)}"`;
-  const width = (col: number) => Math.min(32767, Math.max(8, ...t.rows.map((r) => (r[col] === null ? 0 : new TextEncoder().encode(flat(String(r[col]))).length))));
+  const width = (col: number) => Math.min(32767, Math.max(8, ...t.rows.map((r) => (r[col] === null ? 0 : new TextEncoder().encode(flat(String(r[col]))).length + 2))));
   const isText = (h: string) => h === 'pages_missing' || fields.get(h)?.type === 'text' || !!fields.get(h)?.asText;
   const fmt = (h: string, i: number) => (isText(h) ? `A${width(i)}` : h.endsWith('_mean') ? 'F8.3' : 'F8.0');
-  const cell = (v: Cell, h: string) => (v === null || v === undefined ? '' : isText(h) ? `"${flat(String(v)).replace(/"/g, "'")}"` : String(v));
+  const cell = (v: Cell) => (v === null || v === undefined ? '' : flat(String(v)).replace(/\|/g, '/').replace(/\t/g, ' ').trim());
   const lines = [
     `* Tallyleaf export of "${flat(p.form.title).replace(/"/g, "'")}", ${new Date().toISOString().slice(0, 10)}.`,
     '* Open this file in SPSS (or PSPP) and choose Run > All. The data is inside, so no other file is needed.',
-    'DATA LIST LIST(",") /',
+    'DATA LIST LIST("|") /',
     ...t.header.map((h, i) => `  ${h} (${fmt(h, i)})`),
     '.',
     'BEGIN DATA',
-    ...t.rows.map((r) => r.map((v, i) => cell(v, t.header[i])).join(',')),
+    ...t.rows.map((r) => r.map(cell).join('|')),
     'END DATA.',
     'VARIABLE LABELS',
     ...codebookTable(p).rows.map((r, i, a) => `  ${r[0]} ${q(String(r[1]))}${i === a.length - 1 ? '.' : ''}`),

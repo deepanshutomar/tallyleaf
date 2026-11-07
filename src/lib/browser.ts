@@ -48,7 +48,18 @@ export async function* filePages(file: File): AsyncGenerator<InputPage> {
     await task.destroy();
     return;
   }
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const heic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type);
+  let bmp: ImageBitmap;
+  try {
+    // big phone photos: let the browser shrink while decoding, so a 48 MP image never sits in memory at full size
+    bmp = await createImageBitmap(file, file.size > 2_500_000
+      ? { imageOrientation: 'from-image', resizeWidth: 2600, resizeQuality: 'high' }
+      : { imageOrientation: 'from-image' });
+  } catch {
+    throw new Error(heic
+      ? `${file.name} is an iPhone HEIC photo, which this browser can't open. On the iPhone, choose Settings → Camera → Formats → Most Compatible, or share the photo as JPG.`
+      : `${file.name} couldn't be opened as an image. Use JPG, PNG or a PDF from a scanner.`);
+  }
   const s = Math.min(1, 3200 / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * s);

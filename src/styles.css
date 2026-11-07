@@ -379,6 +379,58 @@ table.data th.idcol { z-index: 3; background: var(--panel-2); }
 .answers button[aria-pressed='true'] .v { color: var(--hi); }
 .tips { margin: 0; padding-left: 1.1rem; color: var(--muted); }
 
+/* ---------- added: safety & mobile ---------- */
+.save-banner { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1.2rem; }
+.printed-tag { font: 500 .66rem var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--blush); color: var(--wine); padding: .15rem .45rem; border-radius: 999px; }
+.lock-note { display: block; color: var(--wine); background: var(--blush); border-radius: 8px; padding: .45rem .6rem; font-size: .82rem; }
+.mini-l { display: block; font-size: .72rem; color: var(--faint); margin-bottom: .15rem; }
+.desk-l { display: none; }
+.item-row label.var, .item-row label.sub { display: block; font-weight: 400; }
+.item-row label.rev .mini-l { display: inline; margin: 0; font-size: .84rem; color: var(--muted); }
+label.check { display: flex; align-items: flex-start; gap: .5rem; font-weight: 400; color: var(--ink); font-size: .88rem; }
+label.check input { margin-top: .15rem; flex: none; }
+label.check.inline { padding-bottom: .6rem; }
+.whoprints select { font-weight: 500; }
+.drop-opts { width: 100%; text-align: left; }
+.drop-opts[open] summary { margin-bottom: .6rem; }
+.drop-opts label.check { margin-bottom: .5rem; }
+.tape-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: 1rem; font-family: var(--sans); }
+.exportbox .toolbar button { flex: 0 1 auto; }
+.clash { background: rgb(255 255 255 / 45%); border-radius: 8px; padding: .4rem .6rem; }
+table.data td { padding: 0; cursor: default; }
+table.data td:hover { background: transparent; }
+button.cell { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .3rem; width: 100%; min-height: 34px; padding: .3rem .6rem; cursor: pointer; font: inherit; }
+button.cell:hover { background: var(--blush); }
+button.cell:focus-visible { outline: 2px solid var(--wine); outline-offset: -2px; }
+table.data td.flag.soft { background: #f3ece4; font-weight: 400; color: var(--muted); }
+.flag-dot { width: 6px; height: 6px; border-radius: 50%; background: #b8860b; margin-left: auto; }
+table.data .idcol { padding: .2rem .5rem; }
+.pick { display: flex; align-items: center; gap: .4rem; color: var(--wine); font-weight: 600; cursor: pointer; }
+.miss-tag { display: block; font-size: .7rem; color: #b8432b; font-weight: 400; }
+.ask { width: min(460px, calc(100vw - 32px)); }
+button.danger-fill { background: var(--bad); border-color: var(--bad); box-shadow: 0 2px 0 #6e1712; }
+.inspector-wrap:not(.open) .inspector { display: none; }
+
+/* phone: the review panel slides up from the bottom */
+@media (max-width: 1023px) {
+  .inspector-wrap.open {
+    position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); z-index: 30;
+    max-height: 72vh; overflow: auto; padding: 0 8px 8px;
+    animation: sheetup .22s ease-out;
+  }
+  .inspector-wrap.open .inspector { border-radius: 18px 18px 12px 12px; box-shadow: 0 -12px 40px -12px rgb(43 27 23 / 45%); }
+  .inspector-wrap:not(.open) { display: none; }
+}
+@keyframes sheetup { from { transform: translateY(40px); opacity: 0; } }
+
+/* touch screens: 44px targets */
+@media (pointer: coarse) {
+  button.small, .x, button.cell, .stepper button { min-height: 44px; }
+  .x { width: 44px; }
+  .block-head .tools button { min-width: 44px; }
+  input[type='checkbox'] { width: 1.35rem; height: 1.35rem; }
+}
+
 /* ---------- tablet ---------- */
 @media (min-width: 640px) {
   main { padding: 1.8rem 24px calc(var(--tabbar-h) + 2rem); }
@@ -404,7 +456,9 @@ table.data th.idcol { z-index: 3; background: var(--panel-2); }
   .item-row.colheads { display: grid; }
   .item-row > input:not(.var):not(.sub) { grid-column: auto; }
   .item-row .num, .item-row .x, .item-row .var, .item-row .sub, .item-row .rev { grid-column: auto; grid-row: auto; }
-  .qhead label:last-child { width: 160px; }
+  .mini-l, .item-row label.rev .mini-l { display: none; }
+  .desk-l { display: inline; }
+  .qhead label:last-child { width: 170px; }
   .timeline li { grid-template-columns: 5.5rem 1fr; }
 }
 
