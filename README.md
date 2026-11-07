@@ -4,12 +4,46 @@
 
 Made for psychology students who have spent a weekend typing questionnaires into SPSS.
 
+![Tallyleaf home screen](docs/screenshots/home.webp)
+
 ## What it does
 
 1. **Build**: rating scales (Likert grids), single choice, tick-all-that-apply, numbers/codes (digit bubbles), open answers, headings, instructions and page breaks. Each question gets a column name, stored values, reverse-scoring and a subscale. A live preview shows the real printed pages.
 2. **Print**: an A4 PDF of numbered copies. Every page carries four corner squares, a QR code (project, layout version, participant ID, page) and the ID in print. IDs continue across batches; teammates can reserve their own ID ranges.
 3. **Scan**: phone photos or scanner PDFs, shuffled, mixed participants, any page order. Each page is straightened, matched to its participant and read. Faint, doubled or skipped marks are flagged with a picture of the original.
 4. **Data**: check flagged answers, then export Excel (data, codebook, corrections log), a self-contained SPSS syntax file with every label, or CSV for R.
+
+## Screenshots
+
+**1 · Build**: blocks in paper order, with a live preview of the printed pages.
+
+![Build step with live PDF preview](docs/screenshots/build.webp)
+
+**2 · Print**: numbered copies; IDs continue from the last batch.
+
+![Print step with serial range](docs/screenshots/print.webp)
+
+**3 · Scan**: drop shuffled photos; each page finds its participant. Duplicates and blank printouts are caught.
+
+![Scan step with receipt](docs/screenshots/scan.webp)
+
+**4 · Data**: check flagged answers next to a picture of the original, then export.
+
+![Data step with review panel](docs/screenshots/data.webp)
+
+**On a phone**: the whole flow works without a computer.
+
+<p>
+  <img src="docs/screenshots/mobile-home.webp" alt="Home on a phone" width="30%" />
+  &nbsp;
+  <img src="docs/screenshots/mobile-scan.webp" alt="Scanning on a phone" width="30%" />
+  &nbsp;
+  <img src="docs/screenshots/mobile-review.webp" alt="Checking an answer on a phone" width="30%" />
+</p>
+
+**What the scanner sees**: a tilted, unevenly lit phone photo of a filled sheet (simulated) that is read correctly.
+
+<img src="docs/screenshots/sample-photo.webp" alt="Phone photo of a filled Tallyleaf sheet" width="420" />
 
 ## Run it
 
