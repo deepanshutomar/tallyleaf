@@ -6,6 +6,7 @@ import { allFields, mergeProjects, missingPages, setAnswer } from '../lib/projec
 import { formatSerial } from '../lib/qr';
 import type { Field, Flag, Project, Response } from '../lib/schema';
 import { readProjectFile } from './Home';
+import { PageHead } from './art';
 
 const FLAG_TEXT: Record<Flag, string> = {
   blank: 'Nothing was marked here. Confirm it was skipped, or pick the answer.',
@@ -68,8 +69,10 @@ export function DataView({ project, update }: { project: Project; update: Update
   const f = sel ? fields.find((x) => x.var === sel.v) : undefined;
 
   return (
-    <div className="stack">
-      <div className="tally">
+    <div className="stack-lg">
+      <PageHead step={4} title={<>Check and <em>export</em></>}
+        lead="One row per participant. Highlighted answers were faint, doubled or blank: check them, then download for Excel, SPSS or R." />
+      <div className="tally grain">
         <div><b>{responses.length}</b><small>participants</small></div>
         <div><b>{project.nextSerial - 1}</b><small>copies printed</small></div>
         <div className={flagCount ? 'flagged' : ''}><b>{flagCount}</b><small>answers to check</small></div>
@@ -86,7 +89,7 @@ export function DataView({ project, update }: { project: Project; update: Update
         {blankCount > 0 && <button className="ghost" onClick={acceptBlanks}>Mark {blankCount} blanks as missing</button>}
         <span className="grow" />
         <button className="ghost" onClick={() => mergeRef.current?.click()}>Merge a teammate's file</button>
-        <input ref={mergeRef} type="file" hidden accept=".psyform,.json,.pdf" onChange={(e) => { const fl = e.target.files?.[0]; e.target.value = ''; if (fl) merge(fl); }} />
+        <input ref={mergeRef} type="file" hidden accept=".tallyleaf,.psyform,.json,.pdf" onChange={(e) => { const fl = e.target.files?.[0]; e.target.value = ''; if (fl) merge(fl); }} />
       </div>
       {msg && <div className="note info">{msg}</div>}
       {flagCount > 0 && <div className="note warn">{flagCount} answers are <span className="hl">highlighted</span> because the marks were faint, doubled or missing. Exports use the scanner's best guess until you check them.</div>}

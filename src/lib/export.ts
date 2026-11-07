@@ -76,7 +76,7 @@ export function spssSyntax(p: Project, csvName: string): string {
   const q = (s: string) => `"${s.replace(/"/g, "''").replace(/\s+/g, ' ').slice(0, 250)}"`;
   const fmt = (h: string) => (h === 'pages_missing' || fields.get(h)?.type === 'text' ? 'A2000' : h.endsWith('_mean') ? 'F8.3' : 'F8.0');
   const lines = [
-    '* PsychScan export. Put this file next to the CSV and run it in SPSS.',
+    '* Tallyleaf export. Put this file next to the CSV and run it in SPSS.',
     `* Edit the path below if SPSS cannot find ${csvName}.`,
     'GET DATA /TYPE=TXT',
     `  /FILE=${q(csvName)}`,

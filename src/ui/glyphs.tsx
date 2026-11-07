@@ -1,14 +1,5 @@
 import type { BlockKind } from '../lib/schema';
 
-export function Logo() {
-  return (
-    <svg viewBox="0 0 28 28" aria-hidden="true">
-      <circle cx="9" cy="14" r="6.5" fill="var(--ink)" />
-      <circle cx="21" cy="14" r="5.6" fill="none" stroke="var(--red)" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
 /** Tiny drawings of what each block looks like on paper. */
 export function Glyph({ kind }: { kind: BlockKind }) {
   const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.4 } as const;

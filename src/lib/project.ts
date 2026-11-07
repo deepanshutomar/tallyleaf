@@ -44,11 +44,12 @@ export function parseProject(text: string): Project {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('This file is not a PsychScan project (it is not valid JSON).');
+    throw new Error('This file is not a Tallyleaf project (it is not valid JSON).');
   }
   const p = data as Project;
-  if (!p || p.format !== FILE_FORMAT || typeof p.id !== 'string' || !p.form || !Array.isArray(p.versions))
-    throw new Error('This file is not a PsychScan project file.');
+  if (!p || (p.format !== FILE_FORMAT && (p.format as string) !== 'psyform') || typeof p.id !== 'string' || !p.form || !Array.isArray(p.versions))
+    throw new Error('This file is not a Tallyleaf project file.');
+  p.format = FILE_FORMAT;
   p.batches ??= [];
   p.responses ??= [];
   p.nextSerial ??= 1;

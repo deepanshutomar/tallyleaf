@@ -10,7 +10,7 @@ import type { FormDef, Project, Version } from './schema';
 const K = 72 / 25.4;
 const PAGE_W = 210 * K;
 const PAGE_H = 297 * K;
-export const ATTACHMENT_NAME = 'project.psyform';
+export const ATTACHMENT_NAME = 'project.tallyleaf';
 
 type FontPair = { regular: PDFFont; bold: PDFFont };
 
@@ -96,7 +96,7 @@ function chromeOps(form: FormDef, layout: Layout, fonts: Fonts, pageNo: number):
   ops.push({ t: 'text', x: 17, y: 281, size: 6.5, text: lead, gray: 0.35 });
   ops.push({ t: 'circle', x: cx, y: 280.2, r: 1.3, fill: 0 });
   ops.push({ t: 'text', x: cx + 2.6, y: 281, size: 6.5, gray: 0.35, text: 'Use a dark pen. Keep the black corner squares and the code visible. Do not fold.' });
-  ops.push({ t: 'text', x: 193, y: 281, size: 6.5, text: 'PsychScan', align: 'right', gray: 0.55 });
+  ops.push({ t: 'text', x: 193, y: 281, size: 6.5, text: 'Tallyleaf', align: 'right', gray: 0.55 });
   return ops;
 }
 
@@ -155,13 +155,13 @@ async function renderPdf(o: RenderOpts): Promise<Uint8Array> {
   }
 
   doc.setTitle(o.form.title || 'Questionnaire');
-  doc.setCreator('PsychScan');
-  doc.setProducer('PsychScan (pdf-lib)');
-  doc.setSubject('Paper questionnaire. Scan filled sheets with PsychScan to get a spreadsheet.');
+  doc.setCreator('Tallyleaf');
+  doc.setProducer('Tallyleaf (pdf-lib)');
+  doc.setSubject('Paper questionnaire. Scan filled sheets with Tallyleaf to get a spreadsheet.');
   if (o.attachment) {
     await doc.attach(o.attachment, ATTACHMENT_NAME, {
       mimeType: 'application/json',
-      description: 'PsychScan project file. Open this PDF in PsychScan to restore the project.',
+      description: 'Tallyleaf project file. Open this PDF in Tallyleaf to restore the project.',
     });
   }
   return doc.save();
@@ -182,7 +182,7 @@ export async function batchPdf(project: Project, version: Version, from: number,
   return renderPdf({ form: version.form, layout, formId: project.id, fp: version.fp, serials, attachment });
 }
 
-/** Read the project file embedded in a PsychScan PDF, or null if there is none. */
+/** Read the project file embedded in a Tallyleaf PDF, or null if there is none. */
 export async function extractProjectFromPdf(bytes: Uint8Array): Promise<string | null> {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true });
   const names = doc.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
@@ -195,7 +195,7 @@ export async function extractProjectFromPdf(bytes: Uint8Array): Promise<string |
       for (let i = 0; i + 1 < arr.size(); i += 2) {
         const name = arr.lookup(i);
         const label = name instanceof PDFString || name instanceof PDFHexString ? name.decodeText() : '';
-        if (label !== ATTACHMENT_NAME) continue;
+        if (label !== ATTACHMENT_NAME && label !== 'project.psyform') continue;
         const spec = arr.lookup(i + 1, PDFDict);
         const stream = spec.lookupMaybe(PDFName.of('EF'), PDFDict)?.lookup(PDFName.of('F'));
         if (stream instanceof PDFRawStream) found.push(new TextDecoder().decode(decodePDFRawStream(stream).decode()));

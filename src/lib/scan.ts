@@ -304,9 +304,9 @@ export type Lookup = (sheet: SheetId) => Version | string;
 export function scanPage(img: RGBA, lookup: Lookup): PageScan {
   const work = toGray(img, WORK_SIDE);
   const qr = findQr(work, img);
-  if (!qr) return { ok: false, error: 'No PsychScan code found on this image. Make sure the whole page is visible, in focus and well lit.' };
+  if (!qr) return { ok: false, error: 'No Tallyleaf code found on this image. Make sure the whole page is visible, in focus and well lit.' };
   const sheet = decodeSheet(qr.text);
-  if (!sheet) return { ok: false, error: 'The code on this page is not a PsychScan code.' };
+  if (!sheet) return { ok: false, error: 'The code on this page is not a Tallyleaf code.' };
   const version = lookup(sheet);
   if (typeof version === 'string') return { ok: false, error: version, sheet };
   const loc = locatePage(work, version.geometry, qr.corners);

@@ -1,4 +1,4 @@
-export const FILE_FORMAT = 'psyform';
+export const FILE_FORMAT = 'tallyleaf';
 export const SCHEMA_VERSION = 1;
 export const APP_VERSION = '0.1.0';
 

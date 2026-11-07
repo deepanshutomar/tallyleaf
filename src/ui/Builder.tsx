@@ -3,6 +3,7 @@ import type { Update } from '../App';
 import { SCALE_PRESETS, blockVars, newBlock, uid, validateForm, type Block, type BlockKind, type LikertItem, type Project, type ScaleOption } from '../lib/schema';
 import { Preview } from './Preview';
 import { Glyph } from './glyphs';
+import { PageHead } from './art';
 
 const KINDS: [BlockKind, string, string][] = [
   ['likert', 'Rating scale', 'Statements down the side, scale across the top. Likert, frequency, GAD-7 style.'],
@@ -58,6 +59,9 @@ export function Builder({ project, update, onNext }: { project: Project; update:
   };
 
   return (
+    <div className="stack-lg">
+    <PageHead step={1} title={<>Build your <em>questionnaire</em></>}
+      lead="Add questions in the order they should appear on paper. Each one becomes a column in your spreadsheet. The preview shows the real printed pages." />
     <div className="split">
       <div className="stack">
         <div className="sheet titlecard stack">
@@ -110,6 +114,7 @@ export function Builder({ project, update, onNext }: { project: Project; update:
         <div className="row end"><button className="primary" onClick={onNext}>Print copies →</button></div>
       </div>
       <div className="sticky"><Preview form={form} /></div>
+    </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { applyPage } from '../lib/project';
 import { formatSerial } from '../lib/qr';
 import type { Flag, Project } from '../lib/schema';
 import type { WorkerIn, WorkerOut } from '../lib/scanWorker';
+import { Icon, PageHead } from './art';
 
 type Entry = { label: string; kind: 'ok' | 'err' | 'warn'; text: string };
 
@@ -83,42 +84,46 @@ export function Scan({ project, update, onDone }: { project: Project; update: Up
 
   if (!project.versions.length) {
     return (
-      <div className="empty" style={{ maxWidth: 640 }}>
-        <h3>Nothing has been printed from this project</h3>
+      <div className="stack-lg">
+      <PageHead step={3} title={<>Scan the <em>filled</em> sheets</>} lead="The scanner reads sheets this project printed." />
+      <div className="empty">
+        <h3>Nothing has been printed from this project yet</h3>
         <p style={{ margin: 0 }}>The scanner only knows sheets this project printed. Download copies in <b>Print</b> first. If the sheets were printed on another computer, go home and open that project file, or any PDF it generated.</p>
+      </div>
       </div>
     );
   }
 
   return (
-    <div className="split">
+    <div className="stack-lg">
+      <PageHead step={3} title={<>Scan the <em>filled</em> sheets</>}
+        lead="Phone photos or scanner PDFs. Shuffled piles, mixed participants, page 2 before page 1: all fine. Each page finds its own participant." />
+      <div className="split">
       <div className="stack">
         <div
-          className={`bed ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
+          className={`drop grain ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
           onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); onFiles(e.dataTransfer.files); }}
         >
           <div className="light" />
-          <div className="kicker" style={{ color: 'var(--hi)' }}>Step 3 · scanner bed</div>
-          <h2>Drop the filled sheets here</h2>
-          <p>Phone photos or scanner PDFs. Shuffled, mixed participants, page 2 before page 1: all fine.</p>
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <button className="primary" disabled={!!busy} onClick={() => pickRef.current?.click()}>Choose photos or PDFs</button>
-            <button disabled={!!busy} onClick={() => camRef.current?.click()}>Use the camera</button>
+          <div className="drop-actions">
+            <button className="primary big" disabled={!!busy} onClick={() => camRef.current?.click()}><Icon name="camera" />Take a photo</button>
+            <button className="big" disabled={!!busy} onClick={() => pickRef.current?.click()}><Icon name="upload" />Choose photos or PDFs</button>
           </div>
+          <p className="muted desktop-only" style={{ margin: 0 }}>…or drag the files onto this box.</p>
           <input ref={pickRef} type="file" multiple hidden accept="image/*,application/pdf" onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
           <input ref={camRef} type="file" hidden accept="image/*" capture="environment" onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
-          <label><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Overwrite pages that were already scanned</label>
-          <div className="status" aria-live="polite">{busy}</div>
+          <label className="check"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Overwrite pages that were already scanned</label>
+          {busy && <div className="status" aria-live="polite"><span className="spinner" />{busy}</div>}
         </div>
 
-        <div className="sheet stack">
-          <h3>Getting a clean read</h3>
-          <ul className="tips">
-            <li>All four black corner squares must be in the photo. That's how the page gets straightened.</li>
-            <li>Lay sheets flat in even light and shoot from roughly above. A bit of tilt is fine.</li>
-            <li>For 50+ sheets, a scanner or the office copier's “scan to PDF” is faster than a phone.</li>
+        <div className="tipbox panel grain">
+          <div className="tiphead"><Icon name="info" size={30} /><h3>Getting a clean read</h3></div>
+          <ul className="checks">
+            <li><Icon name="check" size={18} />All four black corner squares must be in the photo. That's how the page gets straightened.</li>
+            <li><Icon name="check" size={18} />Lay sheets flat in even light and shoot from roughly above. A bit of tilt is fine.</li>
+            <li><Icon name="check" size={18} />For 50+ sheets, a scanner or the office copier's “scan to PDF” is faster than a phone.</li>
           </ul>
         </div>
       </div>
@@ -140,6 +145,7 @@ export function Scan({ project, update, onDone }: { project: Project; update: Up
             {!busy && <div style={{ textAlign: 'center', marginTop: '1rem' }}><button className="primary" onClick={onDone}>Go to the data →</button></div>}
           </>
         )}
+      </div>
       </div>
     </div>
   );
