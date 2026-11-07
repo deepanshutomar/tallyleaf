@@ -5,7 +5,7 @@ import type { RGBA } from '../src/lib/scan';
 import type { Field, Version } from '../src/lib/schema';
 
 export async function renderPdf(bytes: Uint8Array, pxPerMm: number): Promise<RGBA[]> {
-  const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, standardFontDataUrl: new URL('../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }).promise;
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), standardFontDataUrl: new URL('../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }).promise;
   const out: RGBA[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);

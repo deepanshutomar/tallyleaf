@@ -1,7 +1,7 @@
 import type { Gray, RGBA } from './scan';
 
-export function download(data: BlobPart, name: string, type: string) {
-  const url = URL.createObjectURL(new Blob([data], { type }));
+export function download(data: BlobPart | Uint8Array, name: string, type: string) {
+  const url = URL.createObjectURL(new Blob([data as BlobPart], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
@@ -31,7 +31,8 @@ export type InputPage = { label: string; rgba: RGBA };
 export async function* filePages(file: File): AsyncGenerator<InputPage> {
   if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
     const pdfjs = await loadPdfjs();
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+    const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+    const doc = await task.promise;
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const vp = page.getViewport({ scale: 200 / 72 });
@@ -44,7 +45,7 @@ export async function* filePages(file: File): AsyncGenerator<InputPage> {
       await page.render({ canvasContext: ctx, viewport: vp, canvas: c }).promise;
       yield { label: `${file.name} · page ${i}`, rgba: canvasToRgba(c) };
     }
-    await doc.destroy();
+    await task.destroy();
     return;
   }
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });

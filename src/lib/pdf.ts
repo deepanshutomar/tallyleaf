@@ -197,8 +197,8 @@ export async function extractProjectFromPdf(bytes: Uint8Array): Promise<string |
         const label = name instanceof PDFString || name instanceof PDFHexString ? name.decodeText() : '';
         if (label !== ATTACHMENT_NAME) continue;
         const spec = arr.lookup(i + 1, PDFDict);
-        const stream = spec.lookupMaybe(PDFName.of('EF'), PDFDict)?.lookupMaybe(PDFName.of('F'), PDFRawStream);
-        if (stream) found.push(new TextDecoder().decode(decodePDFRawStream(stream).decode()));
+        const stream = spec.lookupMaybe(PDFName.of('EF'), PDFDict)?.lookup(PDFName.of('F'));
+        if (stream instanceof PDFRawStream) found.push(new TextDecoder().decode(decodePDFRawStream(stream).decode()));
       }
     }
     const kids = node.lookupMaybe(PDFName.of('Kids'), PDFArray);

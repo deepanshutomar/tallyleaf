@@ -55,47 +55,133 @@ export function Home({ onOpen }: { onOpen: (p: Project) => void }) {
   return (
     <div className="stack">
       <section className="hero">
-        <h1>Paper questionnaires → spreadsheet</h1>
-        <p>Build a questionnaire, print numbered copies, then photograph or scan the filled sheets. PsychScan reads every answer into a spreadsheet ready for SPSS, R or Excel.</p>
-        <div className="row" style={{ justifyContent: 'center' }}>
-          <button className="primary" onClick={() => onOpen(newProject())}>New questionnaire</button>
-          <button onClick={() => fileRef.current?.click()}>Open project file…</button>
-          <button onClick={() => onOpen(exampleProject())}>Try the example</button>
-          <input ref={fileRef} type="file" hidden accept=".psyform,.json,.pdf,application/json,application/pdf"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); }} />
+        <div>
+          <div className="kicker">For psychology students · free · open source</div>
+          <h1 style={{ marginTop: '.8rem' }}>Stop typing paper questionnaires into <em>SPSS.</em></h1>
+          <p className="lede">
+            Build your questionnaire here and print numbered copies. When they come back filled in, <b>photograph the pile in any order</b>.
+            You get one row per participant, with your variable names, value labels and subscale scores. It all runs in this tab, so <b>participant data never leaves your laptop</b>.
+          </p>
+          <div className="cta">
+            <button className="primary" onClick={() => onOpen(newProject())}>Start a questionnaire</button>
+            <button className="link" onClick={() => fileRef.current?.click()}>Open a project file</button>
+            <button className="link" onClick={() => onOpen(exampleProject())}>Load the GAD-7 example</button>
+            <input ref={fileRef} type="file" hidden accept=".psyform,.json,.pdf,application/json,application/pdf"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); }} />
+          </div>
+          {error && <div className="note bad" style={{ marginTop: '1rem' }}>{error}</div>}
+          <div className="facts">
+            <div><b>~0.3 s</b>per page read</div>
+            <div><b>0</b>uploads, ever</div>
+            <div><b>.xlsx .csv .sps</b>exports</div>
+          </div>
         </div>
-        {error && <div className="notice bad" style={{ maxWidth: 560, margin: '1rem auto 0' }}>{error}</div>}
+        <div className="specimen">
+          <SheetArt />
+          <ol className="callouts">
+            <li><span className="pin">1</span><span><b>Corner squares</b> let a tilted phone photo be straightened.</span></li>
+            <li><span className="pin">2</span><span><b>The code</b> says whose sheet and which page, so order never matters.</span></li>
+            <li><span className="pin">3</span><span><b>The serial</b> becomes the participant ID in your data.</span></li>
+            <li><span className="pin">4</span><span><b>Bubbles</b> are read as your scale values. Ticks and crosses work too.</span></li>
+          </ol>
+        </div>
       </section>
 
-      <div className="steps">
-        <div className="card"><h3><span className="n">1</span>Build</h3><p className="muted">Likert scales, multiple choice, tick boxes, numbers and open questions. Mark reverse-scored items and subscales.</p></div>
-        <div className="card"><h3><span className="n">2</span>Print</h3><p className="muted">Each copy gets its own serial number and code. Print more later, continuing from the last serial.</p></div>
-        <div className="card"><h3><span className="n">3</span>Scan</h3><p className="muted">Phone photos or scanner PDFs, in any order. Each page finds its own participant.</p></div>
-        <div className="card"><h3><span className="n">4</span>Export</h3><p className="muted">Check anything unclear, then download CSV, Excel, a codebook and SPSS syntax with labels.</p></div>
-      </div>
-
       {projects.length > 0 && (
-        <section className="stack">
-          <h2>In this browser</h2>
-          <div className="list">
-            {projects.map((p) => (
-              <div className="list-item" key={p.id}>
-                <div className="grow">
-                  <strong>{p.form.title || 'Untitled'}</strong>
-                  <div className="muted" style={{ fontSize: '.85rem' }}>
-                    {p.form.blocks.length} blocks · {p.nextSerial - 1} copies printed · {p.responses.length} participants scanned · edited {new Date(p.updatedAt).toLocaleString()}
-                  </div>
-                </div>
-                <button onClick={() => onOpen(p)}>Open</button>
-                <button className="ghost danger small" onClick={() => remove(p)}>Remove</button>
-              </div>
-            ))}
+        <section>
+          <div className="section-head"><h2>On this computer</h2><small className="mono">{projects.length} project{projects.length === 1 ? '' : 's'}</small></div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="ledger">
+              <thead><tr><th>Questionnaire</th><th style={{ textAlign: 'right' }}>Printed</th><th style={{ textAlign: 'right' }}>Scanned</th><th>Last edited</th><th /></tr></thead>
+              <tbody>
+                {projects.map((p) => (
+                  <tr key={p.id}>
+                    <td><span className="title">{p.form.title || 'Untitled'}</span></td>
+                    <td className="num">{p.nextSerial - 1}</td>
+                    <td className="num">{p.responses.length}</td>
+                    <td className="mono muted">{new Date(p.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="row end" style={{ flexWrap: 'nowrap' }}>
+                        <button className="small" onClick={() => onOpen(p)}>Open</button>
+                        <button className="small ghost danger" onClick={() => remove(p)}>Remove</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <p className="muted" style={{ fontSize: '.85rem' }}>
-            Browser storage can be cleared by your browser. Use <b>Save project file</b> to keep a copy you can open anywhere. Lost it? Open any PDF PsychScan generated: the project is stored inside it.
+          <p className="muted" style={{ fontSize: '.85rem', marginTop: '.8rem', maxWidth: '52rem' }}>
+            Browsers sometimes clear their storage, so keep the <span className="mono">.psyform</span> file you get from <b>Save project file</b>.
+            Lost it? Open any PDF that PsychScan generated for you: a copy of the project is stored inside it.
           </p>
         </section>
       )}
     </div>
+  );
+}
+
+const FILLS = [2, 0, 3, 1, 1, 2, 0];
+
+function qrCells(): [number, number][] {
+  const cells: [number, number][] = [];
+  let seed = 7;
+  for (let r = 0; r < 11; r++)
+    for (let c = 0; c < 11; c++) {
+      const finder = (r < 3 && c < 3) || (r < 3 && c > 7) || (r > 7 && c < 3);
+      seed = (seed * 9301 + 49297) % 233280;
+      if (finder ? !(r % 10 === 1 && c % 10 === 1) && !(r === 1 && c === 9) && !(r === 9 && c === 1) : seed / 233280 > 0.52) cells.push([r, c]);
+    }
+  return cells;
+}
+
+/** The product, drawn: a sheet that fills itself in and gets scanned. */
+function SheetArt() {
+  const rows = [118, 140, 162, 184, 206, 228, 250];
+  const cols = [176, 198, 220, 242, 264];
+  const widths = [96, 120, 104, 70, 112, 90, 118];
+  return (
+    <svg className="sheetart" viewBox="0 0 300 424" role="img" aria-label="A printed questionnaire with bubbles being filled in and scanned">
+      <rect className="paper" x="0.5" y="0.5" width="299" height="423" />
+      {[[12, 12], [278, 12], [12, 402], [278, 402]].map(([x, y]) => <rect key={`${x}${y}`} className="ink" x={x} y={y} width="10" height="10" />)}
+      <g transform="translate(240 14)">{qrCells().map(([r, c]) => <rect key={`${r}-${c}`} className="ink" x={c * 3} y={r * 3} width="3" height="3" />)}</g>
+      <rect className="ink" x="34" y="20" width="112" height="9" />
+      <rect className="bar" x="34" y="35" width="78" height="4" />
+      <text x="232" y="29" textAnchor="end" style={{ font: '600 9px var(--mono)' }} fill="#1d1b17">ID 00017</text>
+      <line x1="34" y1="56" x2="288" y2="56" stroke="#1d1b17" strokeWidth="1" />
+      <rect className="bar" x="34" y="66" width="60" height="5" />
+      {[44, 84, 124, 164].map((x, i) => (
+        <g key={x}>
+          <circle className="ring" cx={x} cy="84" r="5" />
+          {i === 2 && <circle className="fill" cx={x} cy="84" r="4.2" style={{ ['--d' as string]: '0s' }} />}
+          <rect className="bar" x={x + 9} y="82" width="20" height="4" />
+        </g>
+      ))}
+      <rect x="34" y="100" width="254" height="10" fill="#ebe5d6" />
+      {cols.map((x) => <rect key={x} className="bar" x={x - 7} y="103.5" width="14" height="3" />)}
+      {rows.map((y, r) => (
+        <g key={y}>
+          {r % 2 === 0 && <rect x="34" y={y - 9} width="254" height="18" fill="#f5f1e7" />}
+          <rect className="bar" x="40" y={y - 2} width={widths[r]} height="4" />
+          {cols.map((x, c) => (
+            <g key={x}>
+              <circle className="ring" cx={x} cy={y} r="5.5" />
+              {FILLS[r] + 1 === c && <circle className="fill" cx={x} cy={y} r="4.6" style={{ ['--d' as string]: `${0.45 * (r + 1)}s` }} />}
+            </g>
+          ))}
+        </g>
+      ))}
+      <rect className="bar" x="34" y="276" width="90" height="5" />
+      <rect x="34" y="290" width="254" height="58" fill="none" stroke="#cfc7b5" />
+      {[306, 322, 338].map((y) => <line key={y} x1="40" y1={y} x2="282" y2={y} stroke="#e4ddcd" />)}
+      <path d="M44 303 q4 -7 8 0 t8 0 t8 0 t8 0 q3 -6 7 0 t8 0 t9 0" fill="none" stroke="#2c3a8c" strokeWidth="1.3" className="fill" style={{ ['--d' as string]: '3.6s' }} />
+      <rect className="scan" x="0" y="50" width="300" height="3" />
+      <g className="tag">
+        <circle cx="30" cy="30" r="7" /><text x="30" y="33" textAnchor="middle">1</text>
+        <circle cx="236" cy="54" r="7" /><text x="236" y="57" textAnchor="middle">2</text>
+        <circle cx="196" cy="40" r="7" /><text x="196" y="43" textAnchor="middle">3</text>
+        <circle cx="160" cy="166" r="7" /><text x="160" y="169" textAnchor="middle">4</text>
+      </g>
+    </svg>
   );
 }

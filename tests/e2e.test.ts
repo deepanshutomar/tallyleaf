@@ -67,7 +67,7 @@ describe('generate → fill → photograph → scan', async () => {
     {
       name: 'tilted phone photo, mixed fill/tick/cross',
       style: (_f, rng) => (['fill', 'tick', 'cross'] as Style[])[Math.floor(rng() * 3)],
-      warp: (w, h) => ({ W: 1500, H: 2000, c: [[150, 120], [1330, 60], [1420, 1880], [90, 1950]], light: 0.35 }),
+      warp: () => ({ W: 1500, H: 2000, c: [[150, 120], [1330, 60], [1420, 1880], [90, 1950]], light: 0.35 }),
     },
     {
       name: 'upside-down low-res photo',
