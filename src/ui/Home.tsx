@@ -5,6 +5,7 @@ import { mergeProjects, parseProject, printedCount } from '../lib/project';
 import { newProject, type Project } from '../lib/schema';
 import { deleteLocal, loadLocal } from '../lib/storage';
 import { Icon, PageHead, SheetArt } from './art';
+import { REPO_URL } from './About';
 import { alertDialog, confirmDialog } from './dialog';
 
 export async function readProjectFile(file: File): Promise<Project> {
@@ -69,6 +70,8 @@ export function Home({ onOpen, projects, onRemoved, onAbout }: { onOpen: (p: Pro
         <button className="link" onClick={() => onOpen(exampleProject())}>Try the GAD-7 example</button>
         <span className="dotsep" aria-hidden="true">·</span>
         <button className="link" onClick={onAbout}>What Tallyleaf does and where the idea comes from</button>
+        <span className="dotsep" aria-hidden="true">·</span>
+        <a href={REPO_URL} target="_blank" rel="noreferrer">Free and open source on GitHub ↗</a>
       </div>
 
       <ol className="callouts panel grain">

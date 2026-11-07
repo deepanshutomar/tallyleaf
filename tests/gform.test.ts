@@ -7,7 +7,7 @@ it('builds a Google Apps Script that creates every question', () => {
   const src = googleFormScript(p.form);
   const calls: string[] = [];
   const item = (kind: string): any => new Proxy({}, { get: (_t, k) => (...a: unknown[]) => { calls.push(`${kind}.${String(k)}:${JSON.stringify(a).slice(0, 60)}`); return item(kind); } });
-  const FormApp = { create: (t: string) => { calls.push(`create:${t}`); return new Proxy({}, { get: (_t, k) => (k === 'getEditUrl' || k === 'getPublishedUrl' ? () => 'url' : (...a: unknown[]) => { calls.push(String(k)); return item(String(k)); }) }); }, createTextValidation: () => item('validation') };
+  const FormApp = { create: (t: string) => { calls.push(`create:${t}`); return new Proxy({}, { get: (_t, k) => (k === 'getEditUrl' || k === 'getPublishedUrl' ? () => 'url' : () => { calls.push(String(k)); return item(String(k)); }) }); }, createTextValidation: () => item('validation') };
   const logs: string[] = [];
   new Function('FormApp', 'Logger', `${src}\ncreateForm();`)(FormApp, { log: (m: string) => logs.push(m) });
   expect(calls[0]).toBe('create:Student Wellbeing Survey');

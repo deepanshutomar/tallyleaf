@@ -179,6 +179,22 @@ The repository includes `.github/workflows/deploy.yml`, which builds the site an
 3. Open the **Actions** tab and wait for *Deploy to GitHub Pages* to turn green (about a minute). If it ran before Pages was enabled, click *Re-run all jobs*.
 4. Your site is at `https://<your-username>.github.io/<repository-name>/`. Share that link with students.
 
+## Host it on your own website (Hostinger, cPanel or any Apache hosting)
+
+Tallyleaf is a static website (no database, PHP or Node.js on the server), so it can live in a subfolder of an existing site, e.g. `yoursite.com/tallyleaf/`.
+
+1. Build it on your computer: `npm run build`. This creates a `dist/` folder.
+2. In Hostinger's **File Manager**, open `public_html` and create a folder called `tallyleaf`.
+3. Upload **everything inside** `dist/` into that folder, including the hidden `.htaccess` file (or upload a zip of it and use *Extract*).
+4. Open `https://yoursite.com/tallyleaf/`.
+
+Requirements:
+- **HTTPS** (Hostinger's free SSL is fine): phone camera access and "copy to clipboard" only work on secure pages.
+- Keep the **`.htaccess`** file. It tells Apache to serve the PDF reader's `.mjs` file as JavaScript; without it the preview and PDF scanning fail. On Nginx hosting, add `application/javascript mjs;` to the MIME types instead.
+- To update later, delete the old files in the folder and upload the new `dist/` contents.
+
+Projects are saved per website address, so projects made on `github.io` won't appear on your own domain (and the other way round). Move them with **Save project file** and **Open project file**.
+
 ### Uploading the zip without the command line
 1. Create an empty repository at [github.com/new](https://github.com/new) (don't add a README, .gitignore or license).
 2. Unzip `tallyleaf.zip`.

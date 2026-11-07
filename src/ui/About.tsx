@@ -1,5 +1,7 @@
 import { PageHead, SheetArt } from './art';
 
+export const REPO_URL = 'https://github.com/deepanshutomar/tallyleaf';
+
 export const SOCIALS = [
   { label: 'Instagram', href: 'https://www.instagram.com/deepanshutomarg' },
   { label: 'YouTube', href: 'https://www.youtube.com/@DeepanshuTomarJi' },
@@ -61,7 +63,7 @@ export function About() {
         <div className="principle-grid">
           <div className="panel grain"><h3>Runs in your browser</h3><p>Questions and answers never leave your device. There's no account and no server, which keeps ethics applications simple.</p></div>
           <div className="panel grain"><h3>One file holds the study</h3><p>The project file carries your questions, every printed batch and every scanned answer. Email it to a teammate and they can scan the other half of the pile.</p></div>
-          <div className="panel grain"><h3>Free and open source</h3><p>MIT licensed. Use it for coursework, theses and published research. Improvements are welcome.</p></div>
+          <div className="panel grain"><h3>Free and open source</h3><p>MIT licensed. Use it for coursework, theses and published research. Read the code, report a problem or suggest an improvement <a href={REPO_URL} target="_blank" rel="noreferrer">on GitHub</a>.</p></div>
         </div>
       </section>
 
@@ -71,6 +73,7 @@ export function About() {
           <p className="muted">Built for psychology students who have spent a weekend typing questionnaires into SPSS. If it saves you that weekend, say hi.</p>
         </div>
         <div className="socials">
+          <a className="btn" href={REPO_URL} target="_blank" rel="noreferrer">GitHub (source code)</a>
           {SOCIALS.map((s) => <a key={s.label} className="btn" href={s.href} target="_blank" rel="noreferrer">{s.label}</a>)}
         </div>
       </section>

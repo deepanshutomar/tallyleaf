@@ -5,7 +5,7 @@ import { scanQueue } from './lib/scanQueue';
 import { blockVars, newProject, type Project } from './lib/schema';
 import { lastOpen, listLocal, loadLocal, saveLocal } from './lib/storage';
 import { Icon, Sprig, type IconName } from './ui/art';
-import { About, Heart, SOCIALS } from './ui/About';
+import { About, Heart, REPO_URL, SOCIALS } from './ui/About';
 import { Builder } from './ui/Builder';
 import { DataView } from './ui/Data';
 import { Home, readProjectFile, withLocalCopy } from './ui/Home';
@@ -223,10 +223,11 @@ export function App() {
         <footer className="site grain">
           <div className="made">Made with <Heart /> by <b>Deepanshu Tomar</b></div>
           <nav className="foot-links" aria-label="Follow">
+            <a href={REPO_URL} target="_blank" rel="noreferrer"><b>GitHub</b></a>
             {SOCIALS.map((s) => <a key={s.label} href={s.href} target="_blank" rel="noreferrer">{s.label}</a>)}
             <button className="link" onClick={showAbout}>About Tallyleaf</button>
           </nav>
-          <small>Tallyleaf v0.1 · free and open source (MIT) · nothing you enter leaves this browser</small>
+          <small>Tallyleaf v0.1 · free and open source (MIT), <a href={REPO_URL} target="_blank" rel="noreferrer">code on GitHub</a> · nothing you enter leaves this browser</small>
         </footer>
       </div>
 
