@@ -167,6 +167,7 @@ You only need this to run your own copy or to work on the code. Everyone else ca
 npm run build      # makes a static website in dist/
 npm run preview    # serves dist/ locally to check the build
 npm test           # unit and end-to-end tests
+npm run build:cli  # rebuilds the command-line tool (bin/tallyleaf.js)
 ```
 Opening `dist/index.html` by double-clicking won't work (browsers block the scanner's background worker on `file://`). Serve it with `npm run preview` or any web server.
 
@@ -206,6 +207,60 @@ Projects are saved per website address, so projects made on `github.io` won't ap
 
 The [GitHub Desktop](https://desktop.github.com) app is an easier alternative: *File → Add local repository*, choose the folder, then *Publish repository*.
 
+## Use it offline from the command line (and with AI agents)
+
+Everything the website does is also available as a local command, `tallyleaf`, with no GUI and no internet. It uses the same engine and the same `.tallyleaf` project files, so you can switch between the two at any time. It's ideal for AI coding agents (Claude Code, Codex and others) that already know your research: they write the questionnaire file and run the commands, and the scanning runs on your computer without spending AI tokens.
+
+**Install** (needs Node.js 20.19+, see the install steps above):
+```bash
+npm install -g github:deepanshutomar/tallyleaf
+tallyleaf --version
+```
+
+**The whole workflow:**
+```bash
+tallyleaf init questionnaire.yaml                    # starter questionnaire (every block type)
+tallyleaf check questionnaire.yaml                   # validate; pages per copy; columns
+tallyleaf preview questionnaire.yaml -o preview.pdf  # look before printing
+tallyleaf new questionnaire.yaml -o study.tallyleaf
+tallyleaf print study.tallyleaf --copies 40 -o batch-1.pdf
+tallyleaf scan study.tallyleaf ./photos              # a whole folder of photos / scanner PDFs, any order
+tallyleaf review study.tallyleaf --crops ./review    # flagged answers + an image of each
+tallyleaf set study.tallyleaf 17 gad3=2 comments="Felt calm"
+tallyleaf export study.tallyleaf -o ./export         # Excel, CSV, SPSS, codebook, corrections log
+tallyleaf gform questionnaire.yaml                   # Google Form version
+```
+Every command accepts `--json` for machine-readable output, and every change to a project file first writes a `.bak` backup. Run `tallyleaf help` for all commands (teammate ID ranges, merging, deleting, clashes).
+
+**The questionnaire file** is plain YAML (or JSON) that people and AIs can write:
+```yaml
+title: Exam Stress Study
+blocks:
+  - number: age
+    question: Age (in years)
+    digits: 2
+  - single: gender
+    question: Gender
+    options: {1: Woman, 2: Man, 3: Non-binary, 9: Prefer not to say}
+  - scale:
+      title: How much do you agree with each statement?
+      options: agree-5                  # or a list, or {0: Never, 4: Always}
+      subscale: stress
+      items:
+        - st1: I feel overwhelmed before exams.
+        - { name: st2, text: I stay calm during exams., reverse: true }
+  - open: comments
+    question: Anything else?
+```
+`tallyleaf init` writes a full example with comments explaining every block type.
+
+**Using it with an AI agent:**
+- **Claude Code:** run `tallyleaf setup-agent --claude` once. Claude Code then knows the whole workflow (it's installed as a skill). Just say *"make a Tallyleaf questionnaire for my study"*.
+- **Codex and other agents:** run `tallyleaf setup-agent --codex` in your project folder (adds the guide to `AGENTS.md`), or tell the agent to run `tallyleaf guide` first.
+- **ChatGPT and other chat-only assistants:** paste the output of `tallyleaf guide` and ask for a `questionnaire.yaml`, then run the commands yourself.
+
+The agent guide lives in [`skills/tallyleaf/SKILL.md`](skills/tallyleaf/SKILL.md).
+
 ## How the scanning works
 
 - The QR code says which project, layout version, participant and page a sheet is, so order never matters.
@@ -239,6 +294,7 @@ The [GitHub Desktop](https://desktop.github.com) app is an easier alternative: *
   - Every manual correction goes into a log.
 - Phone-first design with a bottom tab bar and a review panel that slides up from the bottom; a collapsible sidebar on desktop.
 - Google Form export via a guided Apps Script.
+- **Offline command-line tool** (`tallyleaf`) with every feature of the website, a YAML questionnaire format, `--json` output, and a built-in guide for AI agents (Claude Code skill, Codex `AGENTS.md`).
 
 ## Contributing
 

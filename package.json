@@ -1,41 +1,51 @@
 {
-  "name": "psych-scan",
+  "name": "tallyleaf",
   "version": "0.1.0",
-  "description": "Free, open-source, browser-only tool to build paper questionnaires and scan filled sheets into spreadsheets.",
+  "description": "Paper questionnaires to spreadsheet: build, print, scan and export research questionnaires. Website and offline command-line tool.",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build -c vite.cli.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:cli": "vite build -c vite.cli.config.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.1.0",
+    "pdfjs-dist": "^6.5.438"
+  },
+  "devDependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
-    "fflate": "^0.8.3",
-    "idb-keyval": "^6.3.0",
-    "jsqr": "^1.4.0",
-    "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^6.5.438",
-    "qrcode": "^1.5.4",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
-  },
-  "devDependencies": {
-    "@napi-rs/canvas": "^1.1.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "fflate": "^0.8.3",
+    "idb-keyval": "^6.3.0",
+    "jsqr": "^1.4.0",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "5.9",
     "vite": "^8.3.6",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": ">=20.19"
-  }
+  },
+  "bin": {
+    "tallyleaf": "bin/tallyleaf.js"
+  },
+  "files": [
+    "bin",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ]
 }
