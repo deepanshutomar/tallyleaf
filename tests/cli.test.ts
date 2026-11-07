@@ -110,6 +110,14 @@ describe('command-line workflow', async () => {
     expect(lines.join('\n')).toContain('name: tallyleaf');
   });
 
+  it('AGENTS.md matches the agent manual, and the schema command works', async () => {
+    const manual = readFileSync(join(__dirname, '..', 'skills', 'tallyleaf', 'SKILL.md'), 'utf8').replace(/^---[\s\S]*?---\s*/, '').trimEnd();
+    expect(readFileSync(join(__dirname, '..', 'AGENTS.md'), 'utf8')).toContain(manual);
+    const lines: string[] = [];
+    await run(['schema'], { log: (s = '') => lines.push(s), err: () => undefined });
+    expect(JSON.parse(lines.join('\n')).title).toBe('Tallyleaf questionnaire');
+  });
+
   it('the built command runs on its own', () => {
     const bin = join(__dirname, '..', 'bin', 'tallyleaf.js');
     if (!existsSync(bin)) return;

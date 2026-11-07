@@ -259,7 +259,7 @@ blocks:
 - **Codex and other agents:** run `tallyleaf setup-agent --codex` in your project folder (adds the guide to `AGENTS.md`), or tell the agent to run `tallyleaf guide` first.
 - **ChatGPT and other chat-only assistants:** paste the output of `tallyleaf guide` and ask for a `questionnaire.yaml`, then run the commands yourself.
 
-The agent guide lives in [`skills/tallyleaf/SKILL.md`](skills/tallyleaf/SKILL.md).
+**The instruction manual for AI agents** is [`AGENTS.md`](AGENTS.md) (the same text as [`skills/tallyleaf/SKILL.md`](skills/tallyleaf/SKILL.md), and what `tallyleaf guide` prints). It spells out every command, every option, the exact JSON each command returns, the questionnaire format with all presets and rules, what each scan result and flag means and what to do about it, common errors, when to check with you, and a full worked example, so agents never have to guess. `tallyleaf schema` prints the formal JSON Schema of the questionnaire file. Agents that open this repository find it automatically: Claude Code via `CLAUDE.md`, Gemini CLI via `GEMINI.md`, and Codex, Cursor, Copilot and others via `AGENTS.md`.
 
 ## How the scanning works
 

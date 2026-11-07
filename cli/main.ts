@@ -14,7 +14,7 @@ import { formatSerial } from '../src/lib/qr';
 import { scanPage } from '../src/lib/scan';
 import { APP_VERSION, blockVars, newProject, validateForm, type Field, type Flag, type FormDef, type Project } from '../src/lib/schema';
 import { collectInputs, dataUrlToBuffer, grayToDataUrl, pagesFrom } from './io';
-import { QUESTIONNAIRE_HELP, parseQuestionnaire, questionnaireToYaml } from './spec';
+import { QUESTIONNAIRE_HELP, QUESTIONNAIRE_SCHEMA, parseQuestionnaire, questionnaireToYaml } from './spec';
 
 type Flags = Record<string, string | boolean>;
 type Args = { _: string[]; flags: Flags };
@@ -142,6 +142,9 @@ export async function run(argv: string[], out: Out = { log: (s = '') => process.
         return 0;
       case 'guide':
         out.log(guideText);
+        return 0;
+      case 'schema':
+        out.log(JSON.stringify(QUESTIONNAIRE_SCHEMA, null, 2));
         return 0;
 
       case 'init': {
@@ -523,7 +526,8 @@ Export
   export <study> [-o DIR] [--format xlsx,csv,sps,codebook,corrections]
 
 Agents
-  guide                                     Full guide for AI agents (Claude Code, Codex, …)
+  guide                                     Full instructions for AI agents (Claude Code, Codex, …)
+  schema                                    JSON Schema of the questionnaire file
   setup-agent --claude | --codex            Install the guide as a Claude Code skill / into ./AGENTS.md
 
 Project files (.tallyleaf) also open on the website: https://deepanshutomar.in/tallyleaf/`;

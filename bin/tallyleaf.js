@@ -29,7 +29,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 }) : target, mod));
 var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 // skills/tallyleaf/SKILL.md?raw
-var SKILL_default = "---\nname: tallyleaf\ndescription: Design printable paper research questionnaires (bubble/OMR sheets) and turn photos or scans of the filled sheets into Excel, SPSS and CSV data, fully offline with the `tallyleaf` command. Use when the user wants to create a survey or questionnaire for paper data collection, print numbered copies, scan or read filled questionnaires, check flagged answers, or export questionnaire data for analysis.\n---\n\n# Tallyleaf for AI agents\n\nTallyleaf is a local, offline command-line tool. It does the same thing as the Tallyleaf website, with no GUI:\n\n1. **Build**: you write a questionnaire file (YAML) from the user's research.\n2. **Print**: `tallyleaf print` makes an A4 PDF of numbered copies (each page has an ID, a QR code and corner squares).\n3. **Scan**: the user photographs filled sheets into a folder; `tallyleaf scan` reads them (any order, any mix of participants and pages).\n4. **Data**: you check flagged answers, then `tallyleaf export` writes Excel / CSV / SPSS / codebook files.\n\nEverything stays on the user's computer. Add `--json` to any command for machine-readable output.\n\nThe `.tallyleaf` project file is the same format the website uses: the user can also open it at https://deepanshutomar.in/tallyleaf/ (Open project file) to review answers visually.\n\n## Quick workflow\n\n```bash\ntallyleaf init questionnaire.yaml                         # starter file with every block type (GAD-7 example)\n# … edit questionnaire.yaml from the user's research …\ntallyleaf check questionnaire.yaml                        # validate: errors, pages per copy, columns\ntallyleaf preview questionnaire.yaml -o preview.pdf       # look before printing (no IDs used up)\ntallyleaf new questionnaire.yaml -o study.tallyleaf       # create the project file\ntallyleaf print study.tallyleaf --copies 40 -o batch-1.pdf\n# … user prints, collects, photographs the sheets into ./photos …\ntallyleaf scan study.tallyleaf ./photos                   # reads every image/PDF in the folder\ntallyleaf status study.tallyleaf\ntallyleaf review study.tallyleaf --crops ./review         # flagged answers + one image per flag\ntallyleaf set study.tallyleaf 17 gad3=2 comments=\"Felt fine\"   # fix answers after looking\ntallyleaf export study.tallyleaf -o ./export              # xlsx, csv, sps, codebook, corrections\n```\n\nEvery command that changes the project file first writes a backup next to it (`study.tallyleaf.bak`).\n\n## Questionnaire file format\n\n```yaml\ntitle: Student Wellbeing Survey\nsubtitle: Department of Psychology · 2026          # optional line under the title\nblocks:\n  - text: Thank you for taking part. Your answers are anonymous.\n  - heading: About you\n  - number: age                                   # column name\n    question: Age (in years)\n    digits: 2                                     # 1–8 digit bubbles; keep_zeros: true for codes like 007\n  - single: gender\n    question: Gender\n    options: {1: Woman, 2: Man, 3: Non-binary, 9: Prefer not to say}\n  - single: year\n    question: Year of study\n    options: [1st, 2nd, 3rd, Postgraduate]        # stored as 1, 2, 3, 4  (add \"start: 0\" to begin at 0)\n  - multi: relax                                  # tick all that apply → relax_1 … relax_n (1 = ticked, 0 = not)\n    question: What do you do to relax?\n    options: [Exercise, Music, Friends, None of these]\n  - heading: GAD-7\n  - scale:                                        # rating grid: statements × scale points\n      title: Over the last 2 weeks, how often have you been bothered by the following problems?\n      options: frequency-0-3                      # preset, or a list (see below)\n      subscale: gad7                              # adds gad7_sum, gad7_mean, gad7_n to the export\n      items:\n        - gad1: Feeling nervous, anxious, or on edge\n        - gad2: Not being able to stop or control worrying\n  - pagebreak                                     # optional: force a new page\n  - scale:\n      title: How much do you agree with each statement?\n      options: agree-5\n      items:\n        - { name: study1, text: I plan my study time in advance., subscale: study }\n        - { name: study2, text: I find it hard to concentrate when I study., reverse: true, subscale: study }\n  - open: comments                                # lined box; handwriting is typed in later from the photo\n    question: Is there anything else you would like to tell us?\n    lines: 4\n```\n\n**Options** can be:\n- a preset: `agree-5`, `agree-4`, `agree-7`, `frequency-5`, `frequency-0-3`, `intensity-5`, `truefalse-4`, `yes-no`;\n- a list of labels, stored as 1, 2, 3 … (or from `start:`);\n- explicit codes: `{1: Never, 2: Sometimes, 9: Prefer not to say}` or `[\"0 = Not at all\", \"3 = Nearly every day\"]`.\n\n**Rules** (`tallyleaf check` enforces them):\n- Column names start with a letter and use only letters, digits and `_` (no spaces or hyphens), max 64 characters. Not SPSS reserved words (`all and by eq ge gt le lt ne not or to with`). Not `serial`, `version`, `pages_missing`, `unresolved_flags`.\n- Subscale names follow the same rules (max 59 characters).\n- A rating scale or single choice can have up to 10 options, each stored as a different number.\n- Reverse-scored items stay raw in the data; they are only flipped inside the `_sum` / `_mean` scores.\n- Only Latin characters print correctly for now (no Hindi yet). `check` lists anything that would print as \"?\".\n\n## Commands\n\n| Command | What it does |\n|---|---|\n| `tallyleaf init [file]` | Write a starter questionnaire (`questionnaire.yaml`) |\n| `tallyleaf check <questionnaire.yaml \\| study.tallyleaf>` | Validate; show pages per copy and the columns |\n| `tallyleaf preview <file> [-o preview.pdf]` | Preview PDF, no IDs used |\n| `tallyleaf new <questionnaire.yaml> [-o study.tallyleaf]` | Create a project |\n| `tallyleaf form <study.tallyleaf> [-o questionnaire.yaml]` | Export the project's questionnaire as YAML |\n| `tallyleaf update <study.tallyleaf> <questionnaire.yaml>` | Replace the questionnaire (questions already printed keep their column names and codes) |\n| `tallyleaf print <study> --copies N [--start ID] [--by NAME] [--no-duplex] [-o batch.pdf]` | Numbered PDF; IDs continue from the last batch |\n| `tallyleaf reserve <study> --name NAME --count N` | Give a teammate their own ID range |\n| `tallyleaf scan <study> <files or folders…> [--replace] [--keep-empty]` | Read photos (JPG/PNG/WebP) and scanner PDFs |\n| `tallyleaf status <study>` | Printed, scanned, answers to check, missing pages, clashes |\n| `tallyleaf review <study> [--all] [--crops DIR]` | List answers to check; `--crops` saves an image of each |\n| `tallyleaf set <study> <ID> col=value …` | Correct answers (`value` = a code, a number, text, or `missing`) |\n| `tallyleaf confirm-skipped <study>` | Mark every \"nothing marked\" flag as missing |\n| `tallyleaf delete <study> <ID…>` | Remove participants (they can be scanned again later) |\n| `tallyleaf merge <study> <other.tallyleaf>` | Combine a teammate's file |\n| `tallyleaf clash <study> <ID> --keep mine\\|theirs\\|both` | Settle two sheets that share an ID |\n| `tallyleaf export <study> [-o DIR] [--format xlsx,csv,sps,codebook,corrections]` | Write the data files |\n| `tallyleaf gform <questionnaire.yaml \\| study> [-o form.gs]` | Google Form version (Apps Script with step-by-step instructions inside) |\n| `tallyleaf guide` | Print this guide |\n| `tallyleaf setup-agent --claude \\| --codex` | Install this guide for Claude Code (skill) or Codex (AGENTS.md) |\n\n## How to behave as an agent\n\n- **Draft, then confirm.** Write the questionnaire from the user's research, run `check` and `preview`, and summarise it (sections, items, scales, columns, pages per copy) before printing. Ask how many copies to print.\n- **Don't invent published scales.** Use items the user provides or that are freely usable (e.g. PHQ-9, GAD-7). Many scales (BDI-II, STAI and others) are copyrighted; ask the user to supply the licensed items.\n- **Keep codes consistent.** Once printed, a question's column name and codes are locked. To change a scale, add a new question with a new column name.\n- **Scanning.** Results per page: `read`, `read · N to check`, `skipped` (duplicate or blank page) or an error with the reason (e.g. a corner square not visible). Tell the user which photos to retake.\n- **Reviewing flags.** Run `review --crops DIR`, then **look at each image** before deciding:\n  - `faint`, `multiple`, `unclear`: choose the intended option, or `missing`.\n  - `blank`: nothing marked; usually `missing` (or use `confirm-skipped` for all).\n  - `group-empty`: nothing ticked in a tick-all question. Set every `col_k=0` for \"none apply\", or every `col_k=missing` for \"skipped\".\n  - `text`: transcribe the handwriting exactly; `text-empty`: confirm it is empty (`col=missing`) or transcribe.\n  Every change is written to the corrections log, which is exported with the data.\n- **Privacy.** Project files contain participants' answers and images of their handwriting. Keep them local; don't paste their contents into other services.\n- Use `--json` whenever you need to parse output.\n\n## Installing\n\n```bash\nnpm install -g github:deepanshutomar/tallyleaf    # needs Node.js 20.19+ (nodejs.org)\ntallyleaf --version\ntallyleaf setup-agent --claude                    # optional: makes this guide a Claude Code skill\n```\n";
+var SKILL_default = "---\nname: tallyleaf\ndescription: Design printable paper research questionnaires (bubble/OMR sheets) and turn photos or scans of the filled sheets into Excel, SPSS and CSV data, fully offline with the `tallyleaf` command. Use when the user wants to create a survey or questionnaire for paper data collection, print numbered copies, scan or read filled questionnaires, check flagged answers, merge teammates' scans, or export questionnaire data for analysis.\n---\n\n# Tallyleaf for AI agents\n\nThis file is the complete instruction manual for AI agents (Claude Code, Codex, Cursor, Gemini CLI, ChatGPT and others). **Follow it exactly. Do not guess commands, flags, file formats or output fields: everything you need is written here.** If something is not covered, run `tallyleaf help`, `tallyleaf schema` or ask the user. Never invent behaviour.\n\n---\n\n## 1. What Tallyleaf is\n\nTallyleaf turns paper questionnaires into analysis-ready data. It is a local, offline command-line tool (`tallyleaf`) and a website (https://deepanshutomar.in/tallyleaf/) that share one engine and one project file format (`.tallyleaf`).\n\nThe workflow always has four stages:\n\n| Stage | You (the agent) do | Tallyleaf produces |\n|---|---|---|\n| 1. Build | Write `questionnaire.yaml` from the user's research | A validated project file `study.tallyleaf` |\n| 2. Print | Run `tallyleaf print` | A PDF of numbered copies (one copy = one participant) |\n| 3. Scan | Run `tallyleaf scan` on the folder of photos/scans | Every answer read; unclear ones flagged |\n| 4. Data | Resolve flags, then `tallyleaf export` | Excel, CSV, SPSS, codebook, corrections log |\n\nHow it works:\n- Every printed page carries four black corner squares, a QR code (project, layout version, participant ID, page) and the printed ID (`ID 00017`). That is why pages can be photographed **in any order**.\n- Bubble positions are stored in the project file at print time. The scanner never has to guess the layout.\n- All processing is local. Nothing is uploaded. No API keys, accounts or internet needed.\n\n---\n\n## 2. Installation and check\n\n```bash\nnode --version                                   # must be 20.19 or newer; otherwise ask the user to install Node.js LTS from nodejs.org\nnpm install -g github:deepanshutomar/tallyleaf   # installs the `tallyleaf` command\ntallyleaf --version                              # prints: tallyleaf <version>\n```\n\nIf `tallyleaf` is \"not found\" after installing, use `npx github:deepanshutomar/tallyleaf <command>` instead. Never try to re-implement Tallyleaf yourself.\n\nOptional, makes these instructions permanent for an agent:\n```bash\ntallyleaf setup-agent --claude    # Claude Code: installs this file as a skill (~/.claude/skills/tallyleaf/SKILL.md)\ntallyleaf setup-agent --codex     # Codex & others: appends this file to ./AGENTS.md\n```\n\n---\n\n## 3. Standard procedure (follow in order)\n\nRecommended folder layout inside the user's research folder:\n```\ntallyleaf/\n  questionnaire.yaml     # you write this\n  study.tallyleaf        # the project (never edit by hand)\n  prints/                # PDFs to print\n  photos/                # the user puts photos/scans of filled sheets here\n  review/                # images of answers to check\n  export/                # final data files\n```\n\n**Step 1: Understand the study.** From the user's research documents or conversation, collect: title, sections, every question/item text, response scales and their numeric codes, which items are reverse-scored, subscales, demographics. If any of these is unclear, **ask**. Do not make up items.\n\n**Step 2: Write the questionnaire file.** Start from `tallyleaf init tallyleaf/questionnaire.yaml` (a commented example of every block type) or write it directly following section 4. Run `tallyleaf schema` if you need the formal JSON Schema.\n\n**Step 3: Validate.**\n```bash\ntallyleaf check tallyleaf/questionnaire.yaml --json\n```\nFix every reported problem and run `check` again until `\"ok\": true`. Read `warnings` (e.g. characters that can't print).\n\n**Step 4: Preview and confirm with the user.** ⚠️ **Checkpoint.**\n```bash\ntallyleaf preview tallyleaf/questionnaire.yaml -o tallyleaf/prints/preview.pdf\n```\nTell the user: number of sections, questions, columns, subscales, reverse-scored items and pages per copy, and where the preview PDF is. **Ask them to look at it and confirm.** Ask how many copies to print.\n\n**Step 5: Create the project and print.**\n```bash\ntallyleaf new tallyleaf/questionnaire.yaml -o tallyleaf/study.tallyleaf --json\ntallyleaf print tallyleaf/study.tallyleaf --copies <N> -o tallyleaf/prints/batch-1.pdf --json\n```\nTell the user to print on A4, one copy per participant, never photocopy a copy for someone else, and that participants should fill circles with a dark pen.\n\n**Step 6: Scan.** ⚠️ **Checkpoint:** wait until the user says the photos/scans are in the folder.\n```bash\ntallyleaf scan tallyleaf/study.tallyleaf tallyleaf/photos --json\n```\nReport: pages read, skipped (and why), failed (and the reason for each file). Tell the user exactly which photos to retake and how (see section 6).\n\n**Step 7: Resolve flagged answers.**\n```bash\ntallyleaf review tallyleaf/study.tallyleaf --crops tallyleaf/review --json\n```\nFor each item, **open its `image` file and look at it** (you can read images), then decide using section 7, and apply:\n```bash\ntallyleaf set tallyleaf/study.tallyleaf <ID> <column>=<value> [<column>=<value> …] --json\n```\nIf you cannot tell from the image, ask the user. Never guess an answer to make data look complete; use `missing`.\n\n**Step 8: Export.**\n```bash\ntallyleaf status tallyleaf/study.tallyleaf --json      # confirm toCheck is 0 and no missingPages/clashes are left unexplained\ntallyleaf export tallyleaf/study.tallyleaf -o tallyleaf/export --json\n```\nTell the user which files were written and how to open them (section 9).\n\n---\n\n## 4. Questionnaire file format (YAML or JSON)\n\nTop level:\n\n| Key | Required | Meaning |\n|---|---|---|\n| `title` | yes | Printed at the top of every page; also names output files |\n| `subtitle` | no | Smaller line under the title (department, study name, date) |\n| `blocks` | yes | List of blocks, printed top to bottom in this order |\n\nBlock types (each list item is exactly one of these):\n\n```yaml\nblocks:\n  # Section heading\n  - heading: About you\n\n  # Paragraph: instructions, consent text, thank-you\n  - text: Thank you for taking part. Your answers are anonymous.\n\n  # Force a new page\n  - pagebreak\n\n  # Single choice (pick one) → 1 column\n  - single: gender                      # column name\n    question: Gender\n    options: {1: Woman, 2: Man, 3: Non-binary, 9: Prefer not to say}\n\n  # Tick all that apply → columns relax_1 … relax_n (1 = ticked, 0 = not ticked)\n  - multi: relax\n    question: What do you do to relax? (tick all that apply)\n    options: [Exercise, Music, Friends, None of these]\n\n  # Number (digit bubbles) → 1 numeric column\n  - number: age\n    question: Age (in years)\n    digits: 2                           # 1–8; default 2\n    keep_zeros: false                   # true = store as text so 007 stays \"007\" (participant codes)\n\n  # Open answer (lined box; handwriting is transcribed during review) → 1 text column\n  - open: comments\n    question: Is there anything else you would like to tell us?\n    lines: 4                            # 1–20; default 3\n\n  # Rating scale (Likert grid): statements down the side, scale points across → 1 column per item\n  - scale:\n      title: How much do you agree with each statement?\n      options: agree-5\n      subscale: selfesteem              # optional default for all items → selfesteem_sum, selfesteem_mean, selfesteem_n\n      items:\n        - se1: I feel good about myself.                       # short form: column: text\n        - { name: se2, text: At times I feel useless., reverse: true }\n        - { name: se3, text: I am satisfied with my life., subscale: wellbeing }   # per-item subscale override\n```\n\n### Options (for `single` and `scale`)\n\n| Form | Example | Stored codes |\n|---|---|---|\n| Preset | `options: agree-5` | see table below |\n| Plain list | `options: [Never, Sometimes, Often]` | 1, 2, 3 (or from `start: 0` → 0, 1, 2) |\n| Explicit list | `options: [\"0 = Not at all\", \"3 = Nearly every day\"]` | as written |\n| Map | `options: {1: Woman, 2: Man, 9: Prefer not to say}` | as written |\n| Objects | `options: [{value: 0, label: No}, {value: 1, label: Yes}]` | as written |\n\nPresets:\n\n| Preset | Codes and labels |\n|---|---|\n| `agree-5` | 1 Strongly disagree · 2 Disagree · 3 Neutral · 4 Agree · 5 Strongly agree |\n| `agree-4` | 1 Strongly disagree · 2 Disagree · 3 Agree · 4 Strongly agree |\n| `agree-7` | 1 Strongly disagree · 2 Disagree · 3 Somewhat disagree · 4 Neutral · 5 Somewhat agree · 6 Agree · 7 Strongly agree |\n| `frequency-5` | 1 Never · 2 Rarely · 3 Sometimes · 4 Often · 5 Always |\n| `frequency-0-3` | 0 Not at all · 1 Several days · 2 More than half the days · 3 Nearly every day |\n| `intensity-5` | 1 Not at all · 2 A little · 3 Moderately · 4 Quite a bit · 5 Extremely |\n| `truefalse-4` | 1 Definitely false · 2 Mostly false · 3 Mostly true · 4 Definitely true |\n| `yes-no` | 1 Yes · 0 No |\n\n**Match the published scoring of an instrument.** E.g. PHQ-9/GAD-7 use 0–3 (`frequency-0-3`); many scales use 1–5. If unsure, ask the user.\n\n### Rules (enforced by `tallyleaf check`)\n\n- **Column and subscale names:** start with a letter; only letters, digits and `_`; no spaces or hyphens; max 64 characters (subscales max 59). They must be unique (case-insensitive).\n- **Forbidden names:** SPSS reserved words `all and by eq ge gt le lt ne not or to with`, and `serial`, `version`, `pages_missing`, `unresolved_flags`. A column may not equal `<subscale>_sum`, `_mean` or `_n`.\n- **Options:** 2–10 per `single`/`scale`; codes must all be different integers. `multi` needs at least 2 options (consider adding \"None of these\").\n- **At least one question block.** Headings, text and page breaks alone are not a questionnaire.\n- **Characters:** only Latin script prints correctly for now. Hindi, Chinese, emoji, ✓ ≤ ≥ and similar print as \"?\"; `check` lists them as a warning and `print` refuses them unless `--force`. Replace them (e.g. \"<=\" instead of \"≤\").\n- **Paper:** always A4. Layout is automatic: you never position anything. Long scales continue onto the next page with a repeated header.\n- **Reverse-scored items** are stored raw (as marked). They are flipped only inside `_sum`/`_mean` (as min + max − value).\n- **Copyright:** do not reproduce copyrighted instruments (e.g. BDI-II, STAI, many commercial scales) from memory. Use items the user provides, or instruments known to be free to use (e.g. PHQ-9, GAD-7). When in doubt, ask.\n\n### Editing after printing\n\nOnce copies are printed, the column names and stored codes of printed questions are **locked** (old and new sheets must mean the same thing). You may fix typos in text, add new questions, or remove questions. To change a printed scale, add a new question with new column names. Use:\n```bash\ntallyleaf form tallyleaf/study.tallyleaf -o tallyleaf/questionnaire.yaml   # get the current version\n# edit…\ntallyleaf update tallyleaf/study.tallyleaf tallyleaf/questionnaire.yaml\n```\nThe next `print` uses a new layout version automatically; sheets of every version scan into the same data.\n\n---\n\n## 5. Command reference\n\nGlobal behaviour:\n- Add `--json` to **any** command to get exactly one JSON object on stdout: `{\"ok\": true, …}` or `{\"ok\": false, \"error\": \"…\"}`. Always use `--json` when you need to read results.\n- Exit code `0` = success, `1` = error (`scan` returns `1` only if nothing at all could be read).\n- Every command that changes a project file first copies it to `<file>.bak`.\n- `init`, `new`, `form -o`, `print` and `gform` refuse to overwrite an existing file unless `--force` is given. `preview`, `export` and `review --crops` overwrite their output files.\n- Paths are relative to the current directory.\n\n| Command | Arguments / options | JSON fields on success |\n|---|---|---|\n| `tallyleaf init [file]` | default `questionnaire.yaml`; `--force` | `file` |\n| `tallyleaf check <questionnaire.yaml \\| study.tallyleaf>` | | `title`, `pagesPerCopy`, `columns[]`, `subscales[]`, `warnings[]` |\n| `tallyleaf preview <file> [-o out.pdf]` | default `<title>-preview.pdf` | `file`, `pages` |\n| `tallyleaf new <questionnaire.yaml> [-o study.tallyleaf]` | default `<title>.tallyleaf`; `--force` | `project`, `id` |\n| `tallyleaf form <study> [-o questionnaire.yaml]` | without `-o`: YAML to stdout (or `yaml` field with `--json`) | `file` or `yaml` |\n| `tallyleaf update <study> <questionnaire.yaml>` | refuses changes to printed codes/columns | `project` |\n| `tallyleaf print <study> --copies N` | `--start ID` (default: next free), `--by NAME` (teammate range), `--no-duplex`, `-o file.pdf` (default `<title>_<from>-<to>.pdf`), `--force` (print unsupported characters) | `pdf`, `from`, `to`, `copies`, `pagesPerCopy`, `blankBackPages` |\n| `tallyleaf reserve <study> --name NAME --count N` | gives a teammate their own ID range | `name`, `from`, `to` |\n| `tallyleaf scan <study> <files or folders…>` | `--replace` (overwrite pages already scanned: only for re-scanning the same sheet), `--keep-empty` (keep pages with no marks) | `pages[]`, `read`, `skipped`, `failed`, `status` |\n| `tallyleaf status <study>` | | `title`, `printed`, `batches`, `versions`, `participants`, `toCheck`, `skipped`, `missingPages[]`, `clashes[]`, `reservations[]`, `nextId` |\n| `tallyleaf review <study> [--crops DIR]` | `--crops` saves `ID00017_<column>.jpg` per item | `count`, `items[]` |\n| `tallyleaf set <study> <ID> col=value …` | value: a code, digits, text (quote it), or `missing` | `id`, `changes` |\n| `tallyleaf confirm-skipped <study>` | all `blank`, `group-empty`, `text-empty` → missing | `confirmed` |\n| `tallyleaf delete <study> <ID…>` | removes participants; can be re-scanned later | `deleted[]` |\n| `tallyleaf merge <study> <other.tallyleaf>` | combine a teammate's file into `<study>` | `addedVersions`, `addedBatches`, `addedResponses`, `clashes[]`, `skippedDeleted[]` |\n| `tallyleaf clash <study> <ID> --keep mine\\|theirs\\|both` | settle two different sheets sharing an ID | `id`, `keep` |\n| `tallyleaf export <study> [-o DIR]` | `--format xlsx,csv,sps,codebook,corrections` (default: all) | `files[]`, `participants`, `unchecked` |\n| `tallyleaf gform <questionnaire.yaml \\| study> [-o file.gs]` | Google Form version (Apps Script) | `file`, `steps[]` |\n| `tallyleaf schema` | prints the JSON Schema of the questionnaire file | (prints the schema) |\n| `tallyleaf guide` | prints this manual | (prints text) |\n| `tallyleaf setup-agent --claude \\| --codex` | install this manual for an agent | `files[]` |\n| `tallyleaf help`, `tallyleaf --version` | | `version` |\n\n### Detailed JSON shapes\n\n`scan`:\n```json\n{\n  \"ok\": true,\n  \"pages\": [\n    { \"file\": \"IMG_0412.jpg\", \"status\": \"added\", \"id\": 17, \"page\": 1, \"toCheck\": 1, \"skipped\": 0 },\n    { \"file\": \"scan.pdf · page 3\", \"status\": \"skipped-duplicate\", \"id\": 4, \"page\": 2 },\n    { \"file\": \"IMG_0413.jpg\", \"status\": \"error\", \"error\": \"Couldn't line the page up: the bottom-left black corner square isn't visible. …\" }\n  ],\n  \"read\": 1, \"skipped\": 1, \"failed\": 1,\n  \"status\": { \"...\": \"same object as `status`\" }\n}\n```\n`pages[].status` is one of: `added` (new page), `replaced` (with `--replace`), `skipped-empty` (no marks at all), `skipped-duplicate` (this ID + page was already scanned), `error` (see `error`).\n\n`review`:\n```json\n{\n  \"ok\": true, \"count\": 2,\n  \"items\": [\n    { \"id\": 17, \"column\": \"gad3\", \"flag\": \"multiple\", \"meaning\": \"two or more options marked: …\", \"question\": \"Worrying too much about different things\",\n      \"page\": 1, \"current\": 2, \"options\": [{ \"value\": 0, \"label\": \"Not at all\" }, { \"value\": 1, \"label\": \"Several days\" }],\n      \"image\": \"tallyleaf/review/ID00017_gad3.jpg\", \"soft\": false },\n    { \"id\": 17, \"column\": \"comments\", \"flag\": \"text\", \"question\": \"Is there anything else…\", \"page\": 2, \"current\": null, \"image\": \"…\", \"soft\": false }\n  ]\n}\n```\n`current` is the scanner's best guess (what will be exported if you do nothing). `soft: true` marks \"nothing was marked\" cases, listed after the real problems. `options` is present for single-choice, scale and tick-box columns.\n\n`status.missingPages`: `[{ \"id\": 12, \"pages\": [2] }]`, participants with pages not scanned yet. `status.clashes`: `[{ \"id\": 14, \"from\": \"riya.tallyleaf\" }]`.\n\n---\n\n## 6. Scan results: what to tell the user\n\n| Result | Meaning | What to do |\n|---|---|---|\n| `added` | Page read and filed under its participant | Nothing |\n| `added` with `toCheck > 0` | Read, some answers need a human look | Resolve in step 7 |\n| `skipped-empty` | Page has no marks at all | Usually an unused copy. If the participant really left that whole page blank, re-run `scan` for that file with `--keep-empty` |\n| `skipped-duplicate` | This ID + page was already scanned | If it's the same sheet photographed twice: ignore. If it's a **different person's** sheet with the same ID (photocopy): set it aside and tell the user; never use `--replace` for it |\n| error: *corner square isn't visible* | Page couldn't be aligned | Retake: whole page in frame, all 4 black squares visible with a margin, phone held flat above the page |\n| error: *Couldn't find the code* | QR code unreadable | Retake: one page per photo, in focus, no glare on the top-right code, not cropped |\n| error: *too small to read* | Resolution too low | Move closer / use a higher resolution |\n| error: *different project* | Sheet printed from another project file | Use the project file the sheets were printed from |\n| error: *version that is not in this project file* | Printed from a newer copy of the project | Get the newer `.tallyleaf` file (or `merge` it) and scan again |\n| error: *HEIC photo* | iPhone HEIC format | Convert to JPG (iPhone: Settings → Camera → Formats → Most Compatible) |\n\nAccepted inputs: JPG, PNG and WebP photos, and PDFs from scanners (every page is read). Folders are searched recursively; hidden files and other file types are ignored. HEIC must be converted to JPG first.\n\n---\n\n## 7. Resolving flagged answers\n\nAlways look at the `image` before deciding. Then:\n\n| `flag` | Column type | Decide | Command |\n|---|---|---|---|\n| `faint` | choice / scale | Light mark: was it intended? | `set … col=<code>` or `col=missing` |\n| `multiple` | choice / scale | Two+ options marked (often a crossed-out answer + a new one). The intended answer is usually the clearly filled one, not the crossed-out one | `set … col=<code>` or `col=missing` |\n| `unclear` | choice / scale / number | Marks hard to tell apart | `set … col=<code or digits>` |\n| `blank` | choice / scale / number | Nothing marked: skipped | `set … col=missing` (or the answer if you can see one), or `confirm-skipped` for all at once |\n| `faint` | tick box (`col_k`) | Light tick? | `set … col_k=1` or `col_k=0` |\n| `group-empty` | tick-all question | Nothing ticked: \"none apply\" or \"skipped\"? | none apply: `set … q_1=0 q_2=0 … q_n=0`; skipped: `set … q_1=missing … q_n=missing`. Set **all** columns of the question. Ask the user which interpretation the study uses if unsure |\n| `text` | open answer | Handwriting | Transcribe exactly as written (keep spelling): `set … comments=\"exact text\"` |\n| `text-empty` | open answer | Box looks empty | Confirm `col=missing`, or transcribe if you see writing |\n\nValues for `set`:\n- choice/scale: one of the listed `options[].value` codes (anything else is rejected with the allowed list);\n- tick box: `0` or `1`;\n- number: digits only (respecting the digit count; leading zeros kept if `keep_zeros`);\n- open answer: any text (quote it in the shell);\n- any column: `missing`.\n\nEvery change is logged (when, ID, column, scanner value, new value, reason) and exported as the corrections log. Report what you changed to the user.\n\n---\n\n## 8. Teams, merging and clashes\n\n- Two people printing from copies of the same project file would print the **same IDs**. Prevent it:\n  ```bash\n  tallyleaf reserve study.tallyleaf --name Riya --count 100     # Riya gets her own ID range\n  tallyleaf print study.tallyleaf --copies 30 --by Riya         # run on Riya's copy\n  ```\n- Combine a teammate's scans: `tallyleaf merge study.tallyleaf riya.tallyleaf`. Pages of the same participant are joined; nothing is ever dropped.\n- If two **different** sheets share an ID, they become a clash (`status.clashes`). Settle each one:\n  `tallyleaf clash study.tallyleaf 14 --keep mine|theirs|both` (`both` gives the second sheet a new ID and records the printed one in `original_serial`).\n- Deleted participants stay deleted when an older file is merged back in.\n\n---\n\n## 9. Exported data\n\n`tallyleaf export` writes (`<name>` = the title in lowercase with hyphens):\n\n| File | Contents |\n|---|---|\n| `<name>.xlsx` | Sheets: Data, Codebook, Corrections |\n| `<name>.csv` | Data (UTF-8 with BOM; text that looks like a formula is prefixed with `'`; line breaks in text become \" / \") |\n| `<name>.sps` | Self-contained SPSS syntax: data + variable labels + value labels. In SPSS or PSPP: open it, then Run → All. No other file needed |\n| `<name>_codebook.csv` | Every column: label, type, codes, reverse-scored, subscale, page |\n| `<name>_corrections.csv` | Every manual change |\n\nData columns, in order:\n- `serial`: the participant ID printed on the sheet (`ID 00017` = 17).\n- `original_serial`: only present if a clash was settled with `both`.\n- `version`: layout version (1 = first printed).\n- `pages_missing`: pages not scanned yet, e.g. `2`.\n- Then every question column, in questionnaire order. Choice/scale columns hold codes, tick boxes 0/1, numbers numeric (or text with `keep_zeros`), open answers text. Empty means missing.\n- For each subscale: `<sub>_sum` (blank if any item is missing), `<sub>_mean` (mean of answered items), `<sub>_n` (number answered). Reverse-scored items are flipped inside these only.\n- `unresolved_flags`: answers still not checked (should be 0 before analysis).\n\nIn R: `read.csv(\"export/<name>.csv\")`. For a Google Form version of the same questionnaire: `tallyleaf gform …`, then follow the printed steps (script.google.com → New project → paste → Run → allow).\n\n---\n\n## 10. Common errors and fixes\n\n| Error message contains | Fix |\n|---|---|\n| `is not a valid …` / `can't be used: start with a letter` | Rename the column/subscale (letters, digits, `_`) |\n| `reserved word in SPSS` | Rename, e.g. `to` → `to_1` |\n| `is used more than once` | Make column names unique |\n| `has two options stored as the same number` | Give every option a different code |\n| `unknown preset` | Use a preset from section 4 or list the options |\n| `\"options\" is missing` / `\"question\" is missing` | Add the missing key |\n| `already exists` | Choose another output name or add `--force` (never overwrite a project file without the user's consent) |\n| `How many copies?` | Add `--copies N` |\n| `were already printed` / `are reserved for` | Leave out `--start` (uses the next free ID) or use the suggested ID |\n| `would print as \"?\"` | Replace those characters, or `--force` if the user accepts \"?\" |\n| `was printed with options stored as` | A printed question's codes changed: undo, or add a new question with new column names |\n| `No scanned participant with ID` / `has no column` | Check IDs and column names with `status` / `review` |\n| `must be one of …` | Use one of the listed codes, or `missing` |\n| `Nothing has been printed from this project yet` | Print first, or use the project file the sheets were printed from |\n\n---\n\n## 11. Rules of conduct for agents\n\n1. **Never fabricate.** Not questionnaire items, not answers, not scan results. If you don't know, ask the user or use `missing`.\n2. **Checkpoints with the user:** before printing (show summary + preview, confirm copy count), when scans fail (which photos to retake), and when an answer can't be read from the image.\n3. **Don't edit `.tallyleaf` files by hand.** Always use commands. Backups (`.bak`) exist, but don't rely on them.\n4. **Privacy:** project files and review images contain participants' answers and handwriting. Keep them local; never upload or paste them into other services.\n5. **Always use `--json`** when you parse results; report the outcome to the user in plain words.\n6. **Respect locked codes** after printing; never \"fix\" data by changing codes.\n7. The user can open the same project on the website (https://deepanshutomar.in/tallyleaf/ → Open project file) to review answers visually. Suggest it if they prefer clicking to commands.\n\n---\n\n## 12. Worked example\n\nUser: *\"My study measures exam stress (8 items, 1–5 agreement, items 3 and 6 reversed) plus age, gender and year. Print 60 copies.\"*\n\n```bash\nmkdir -p tallyleaf/prints tallyleaf/photos tallyleaf/review tallyleaf/export\ncat > tallyleaf/questionnaire.yaml <<'YAML'\ntitle: Exam Stress Study\nsubtitle: Department of Psychology · 2026\nblocks:\n  - text: Thank you for taking part. Your answers are anonymous. Please fill the circles fully with a dark pen.\n  - heading: About you\n  - number: age\n    question: Age (in years)\n    digits: 2\n  - single: gender\n    question: Gender\n    options: {1: Woman, 2: Man, 3: Non-binary, 9: Prefer not to say}\n  - single: year\n    question: Year of study\n    options: [1st, 2nd, 3rd, 4th, Postgraduate]\n  - heading: Exam stress\n  - scale:\n      title: How much do you agree with each statement?\n      options: agree-5\n      subscale: stress\n      items:\n        - es1: I feel overwhelmed before exams.\n        - es2: I lose sleep worrying about exams.\n        - { name: es3, text: I stay calm during exams., reverse: true }\n        - es4: I find it hard to concentrate when revising.\n        - es5: I worry that I will fail.\n        - { name: es6, text: I feel well prepared for exams., reverse: true }\n        - es7: My heart races during exams.\n        - es8: I avoid thinking about upcoming exams.\nYAML\ntallyleaf check tallyleaf/questionnaire.yaml --json\ntallyleaf preview tallyleaf/questionnaire.yaml -o tallyleaf/prints/preview.pdf\n```\n→ Tell the user: *\"1 page per copy; columns age, gender, year, es1–es8; subscale stress (es3 and es6 reverse-scored). Preview: tallyleaf/prints/preview.pdf. Print 60 copies?\"*\n\nAfter confirmation:\n```bash\ntallyleaf new tallyleaf/questionnaire.yaml -o tallyleaf/study.tallyleaf --json\ntallyleaf print tallyleaf/study.tallyleaf --copies 60 -o tallyleaf/prints/batch-1.pdf --json\n```\nLater, when the photos are in `tallyleaf/photos/`:\n```bash\ntallyleaf scan tallyleaf/study.tallyleaf tallyleaf/photos --json\ntallyleaf review tallyleaf/study.tallyleaf --crops tallyleaf/review --json\n# look at each image, then e.g.:\ntallyleaf set tallyleaf/study.tallyleaf 23 es4=3 --json\ntallyleaf confirm-skipped tallyleaf/study.tallyleaf --json          # only after telling the user\ntallyleaf status tallyleaf/study.tallyleaf --json\ntallyleaf export tallyleaf/study.tallyleaf -o tallyleaf/export --json\n```\n→ Tell the user: *\"52 participants; 3 answers corrected (see the corrections log); files in tallyleaf/export: exam-stress-study.xlsx, .csv, .sps (open it in SPSS and choose Run → All), codebook, corrections.\"*\n";
 // src/lib/schema.ts
 var FILE_FORMAT = "tallyleaf";
 var APP_VERSION = "0.1.0";
@@ -47880,6 +47880,203 @@ var QUESTIONNAIRE_HELP = `# Tallyleaf questionnaire file (YAML; JSON works too)
 #         - { name: se2, text: I feel useless at times., reverse: true }
 #   - pagebreak
 `;
+var NAME = {
+	type: "string",
+	pattern: "^[A-Za-z][A-Za-z0-9_]{0,63}$",
+	description: "Column name: starts with a letter; letters, digits, _ only; not an SPSS reserved word (all and by eq ge gt le lt ne not or to with); not serial/version/pages_missing/unresolved_flags."
+};
+var OPTIONS = {
+	description: `A preset name (${Object.keys(PRESETS).join(", ")}), a list of labels (stored as start, start+1, …), a list of "N = Label" strings, a list of {value, label}, or a map {N: Label}. 2–10 options, each a different number.`,
+	oneOf: [
+		{
+			type: "string",
+			enum: Object.keys(PRESETS)
+		},
+		{
+			type: "array",
+			minItems: 2,
+			maxItems: 10,
+			items: { oneOf: [{ type: "string" }, {
+				type: "object",
+				required: ["label"],
+				properties: {
+					value: { type: "integer" },
+					label: { type: "string" }
+				}
+			}] }
+		},
+		{
+			type: "object",
+			patternProperties: { "^-?\\d+$": { type: "string" } },
+			additionalProperties: false
+		}
+	]
+};
+/** JSON Schema of the questionnaire file, printed by `tallyleaf schema`. */
+var QUESTIONNAIRE_SCHEMA = {
+	$schema: "https://json-schema.org/draft/2020-12/schema",
+	title: "Tallyleaf questionnaire",
+	type: "object",
+	required: ["title", "blocks"],
+	properties: {
+		title: {
+			type: "string",
+			description: "Printed at the top of every page."
+		},
+		subtitle: {
+			type: "string",
+			description: "Optional smaller line under the title."
+		},
+		blocks: {
+			type: "array",
+			minItems: 1,
+			description: "Printed in this order. At least one question block.",
+			items: { oneOf: [
+				{
+					const: "pagebreak",
+					description: "Start a new page."
+				},
+				{
+					type: "object",
+					required: ["heading"],
+					additionalProperties: false,
+					properties: { heading: { type: "string" } }
+				},
+				{
+					type: "object",
+					required: ["text"],
+					additionalProperties: false,
+					properties: { text: {
+						type: "string",
+						description: "Instructions/consent paragraph. Use \\n for new paragraphs."
+					} }
+				},
+				{
+					type: "object",
+					required: [
+						"single",
+						"question",
+						"options"
+					],
+					additionalProperties: false,
+					properties: {
+						single: NAME,
+						question: { type: "string" },
+						options: OPTIONS,
+						start: {
+							type: "integer",
+							default: 1,
+							description: "First code when options is a plain list."
+						}
+					}
+				},
+				{
+					type: "object",
+					required: [
+						"multi",
+						"question",
+						"options"
+					],
+					additionalProperties: false,
+					description: "Tick all that apply. Produces columns <name>_1 … <name>_n, each 1 = ticked, 0 = not.",
+					properties: {
+						multi: NAME,
+						question: { type: "string" },
+						options: {
+							type: "array",
+							minItems: 2,
+							items: { type: "string" }
+						}
+					}
+				},
+				{
+					type: "object",
+					required: ["number", "question"],
+					additionalProperties: false,
+					properties: {
+						number: NAME,
+						question: { type: "string" },
+						digits: {
+							type: "integer",
+							minimum: 1,
+							maximum: 8,
+							default: 2
+						},
+						keep_zeros: {
+							type: "boolean",
+							default: false,
+							description: "Store as text so leading zeros survive (codes like 007)."
+						}
+					}
+				},
+				{
+					type: "object",
+					required: ["open", "question"],
+					additionalProperties: false,
+					properties: {
+						open: NAME,
+						question: { type: "string" },
+						lines: {
+							type: "integer",
+							minimum: 1,
+							maximum: 20,
+							default: 3
+						}
+					}
+				},
+				{
+					type: "object",
+					required: ["scale"],
+					additionalProperties: false,
+					properties: { scale: {
+						type: "object",
+						required: ["options", "items"],
+						additionalProperties: false,
+						properties: {
+							title: {
+								type: "string",
+								description: "Instruction printed above the grid."
+							},
+							options: OPTIONS,
+							start: {
+								type: "integer",
+								default: 1
+							},
+							subscale: {
+								...NAME,
+								description: "Default subscale for every item; adds <subscale>_sum, _mean, _n to the export (max 59 characters)."
+							},
+							items: {
+								type: "array",
+								minItems: 1,
+								items: { oneOf: [{
+									type: "object",
+									minProperties: 1,
+									maxProperties: 1,
+									description: "{column: \"Statement text\"}",
+									additionalProperties: { type: "string" }
+								}, {
+									type: "object",
+									required: ["name", "text"],
+									additionalProperties: false,
+									properties: {
+										name: NAME,
+										text: { type: "string" },
+										reverse: {
+											type: "boolean",
+											default: false
+										},
+										subscale: NAME
+									}
+								}] }
+							}
+						}
+					} }
+				}
+			] }
+		}
+	}
+};
 // cli/main.ts
 var UserError = class extends Error {};
 var BOOL = /* @__PURE__ */ new Set([
@@ -48052,6 +48249,9 @@ async function run(argv, out = {
 				return 0;
 			case "guide":
 				out.log(SKILL_default);
+				return 0;
+			case "schema":
+				out.log(JSON.stringify(QUESTIONNAIRE_SCHEMA, null, 2));
 				return 0;
 			case "init": {
 				const file = pos[0] ?? "questionnaire.yaml";
@@ -48545,7 +48745,8 @@ Export
   export <study> [-o DIR] [--format xlsx,csv,sps,codebook,corrections]
 
 Agents
-  guide                                     Full guide for AI agents (Claude Code, Codex, …)
+  guide                                     Full instructions for AI agents (Claude Code, Codex, …)
+  schema                                    JSON Schema of the questionnaire file
   setup-agent --claude | --codex            Install the guide as a Claude Code skill / into ./AGENTS.md
 
 Project files (.tallyleaf) also open on the website: https://deepanshutomar.in/tallyleaf/`;

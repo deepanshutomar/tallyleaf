@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build -c vite.cli.config.ts",
+    "build": "tsc --noEmit && vite build && npm run build:cli",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build:cli": "vite build -c vite.cli.config.ts"
+    "build:cli": "node scripts/sync-agents.mjs && vite build -c vite.cli.config.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.1.0",
@@ -46,6 +46,7 @@
     "bin",
     "skills",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "AGENTS.md"
   ]
 }

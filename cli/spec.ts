@@ -210,3 +210,75 @@ export const QUESTIONNAIRE_HELP = `# Tallyleaf questionnaire file (YAML; JSON wo
 #         - { name: se2, text: I feel useless at times., reverse: true }
 #   - pagebreak
 `;
+
+const NAME = { type: 'string', pattern: '^[A-Za-z][A-Za-z0-9_]{0,63}$', description: 'Column name: starts with a letter; letters, digits, _ only; not an SPSS reserved word (all and by eq ge gt le lt ne not or to with); not serial/version/pages_missing/unresolved_flags.' };
+const OPTIONS = {
+  description: `A preset name (${Object.keys(PRESETS).join(', ')}), a list of labels (stored as start, start+1, …), a list of "N = Label" strings, a list of {value, label}, or a map {N: Label}. 2–10 options, each a different number.`,
+  oneOf: [
+    { type: 'string', enum: Object.keys(PRESETS) },
+    { type: 'array', minItems: 2, maxItems: 10, items: { oneOf: [{ type: 'string' }, { type: 'object', required: ['label'], properties: { value: { type: 'integer' }, label: { type: 'string' } } }] } },
+    { type: 'object', patternProperties: { '^-?\\d+$': { type: 'string' } }, additionalProperties: false },
+  ],
+};
+
+/** JSON Schema of the questionnaire file, printed by `tallyleaf schema`. */
+export const QUESTIONNAIRE_SCHEMA = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  title: 'Tallyleaf questionnaire',
+  type: 'object',
+  required: ['title', 'blocks'],
+  properties: {
+    title: { type: 'string', description: 'Printed at the top of every page.' },
+    subtitle: { type: 'string', description: 'Optional smaller line under the title.' },
+    blocks: {
+      type: 'array', minItems: 1, description: 'Printed in this order. At least one question block.',
+      items: {
+        oneOf: [
+          { const: 'pagebreak', description: 'Start a new page.' },
+          { type: 'object', required: ['heading'], additionalProperties: false, properties: { heading: { type: 'string' } } },
+          { type: 'object', required: ['text'], additionalProperties: false, properties: { text: { type: 'string', description: 'Instructions/consent paragraph. Use \\n for new paragraphs.' } } },
+          {
+            type: 'object', required: ['single', 'question', 'options'], additionalProperties: false,
+            properties: { single: NAME, question: { type: 'string' }, options: OPTIONS, start: { type: 'integer', default: 1, description: 'First code when options is a plain list.' } },
+          },
+          {
+            type: 'object', required: ['multi', 'question', 'options'], additionalProperties: false,
+            description: 'Tick all that apply. Produces columns <name>_1 … <name>_n, each 1 = ticked, 0 = not.',
+            properties: { multi: NAME, question: { type: 'string' }, options: { type: 'array', minItems: 2, items: { type: 'string' } } },
+          },
+          {
+            type: 'object', required: ['number', 'question'], additionalProperties: false,
+            properties: { number: NAME, question: { type: 'string' }, digits: { type: 'integer', minimum: 1, maximum: 8, default: 2 }, keep_zeros: { type: 'boolean', default: false, description: 'Store as text so leading zeros survive (codes like 007).' } },
+          },
+          {
+            type: 'object', required: ['open', 'question'], additionalProperties: false,
+            properties: { open: NAME, question: { type: 'string' }, lines: { type: 'integer', minimum: 1, maximum: 20, default: 3 } },
+          },
+          {
+            type: 'object', required: ['scale'], additionalProperties: false,
+            properties: {
+              scale: {
+                type: 'object', required: ['options', 'items'], additionalProperties: false,
+                properties: {
+                  title: { type: 'string', description: 'Instruction printed above the grid.' },
+                  options: OPTIONS,
+                  start: { type: 'integer', default: 1 },
+                  subscale: { ...NAME, description: 'Default subscale for every item; adds <subscale>_sum, _mean, _n to the export (max 59 characters).' },
+                  items: {
+                    type: 'array', minItems: 1,
+                    items: {
+                      oneOf: [
+                        { type: 'object', minProperties: 1, maxProperties: 1, description: '{column: "Statement text"}', additionalProperties: { type: 'string' } },
+                        { type: 'object', required: ['name', 'text'], additionalProperties: false, properties: { name: NAME, text: { type: 'string' }, reverse: { type: 'boolean', default: false }, subscale: NAME } },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  },
+};
