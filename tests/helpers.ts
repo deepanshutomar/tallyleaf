@@ -21,7 +21,7 @@ export async function renderPdf(bytes: Uint8Array, pxPerMm: number): Promise<RGB
   return out;
 }
 
-export type Style = 'fill' | 'tick' | 'cross' | 'faint';
+export type Style = 'fill' | 'tick' | 'cross' | 'faint' | 'thin';
 
 /** Draw pen marks on a rendered page. `answers` maps var -> value (choice/digits) or 1/0 (check). */
 export function fillPage(img: RGBA, pxPerMm: number, v: Version, page: number, answers: Record<string, number | null>, style: (f: Field) => Style, rng: () => number): RGBA {
@@ -41,10 +41,11 @@ export function fillPage(img: RGBA, pxPerMm: number, v: Version, page: number, a
       const s = String(a).padStart(f.digits!, '0');
       marks = f.marks.filter((m) => m.value === Number(s[m.pos!]));
     } else {
-      ctx.strokeStyle = 'rgb(20,30,120)';
-      ctx.lineWidth = 0.4 * k;
+      // 1 = long ballpoint line, 2 = short word ("No"), 3 = pencil line
+      ctx.strokeStyle = a === 3 ? 'rgb(120,120,125)' : 'rgb(20,30,120)';
+      ctx.lineWidth = (a === 3 ? 0.3 : 0.4) * k;
       ctx.beginPath();
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < (a === 2 ? 3 : 40); i++) {
         const x = (f.region.x + 5 + i * 2.2) * k;
         const y = (f.region.y + 6) * k;
         ctx.moveTo(x, y);
@@ -67,7 +68,8 @@ function drawMark(ctx: SKRSContext2D, x: number, y: number, k: number, s: Style)
   if (s === 'fill' || s === 'faint') {
     ctx.arc(x, y, 1.9 * k, 0, Math.PI * 2);
     ctx.fill();
-  } else if (s === 'tick') {
+  } else if (s === 'tick' || s === 'thin') {
+    if (s === 'thin') ctx.lineWidth = 0.3 * k;
     ctx.moveTo(x - 1.6 * k, y);
     ctx.lineTo(x - 0.3 * k, y + 1.5 * k);
     ctx.lineTo(x + 2 * k, y - 2 * k);

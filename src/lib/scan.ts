@@ -9,7 +9,7 @@ export type Gray = { w: number; h: number; d: Uint8Array };
 export type FieldResult = { value: number | string | null; flag?: Flag; scores: number[] };
 
 export type PageScan =
-  | { ok: true; sheet: SheetId; version: Version; fields: Record<string, FieldResult>; crops: Record<string, Gray>; alignErrorMm: number }
+  | { ok: true; sheet: SheetId; version: Version; fields: Record<string, FieldResult>; crops: Record<string, Gray>; alignErrorMm: number; empty: boolean }
   | { ok: false; error: string; sheet?: SheetId };
 
 export const THRESHOLDS = { mark: 0.25, faint: 0.12 };
@@ -42,6 +42,19 @@ export function toGray(img: RGBA, maxSide: number): Gray {
     }
   }
   return { w, h, d };
+}
+
+/** Stretch washed-out or dim photos so ink and paper span the full range. */
+function stretch(g: Gray): Gray {
+  const hist = new Uint32Array(256);
+  for (const v of g.d) hist[v]++;
+  const pct = (q: number) => { let acc = 0; for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc >= q * g.d.length) return i; } return 255; };
+  const lo = pct(0.005), hi = pct(0.98);
+  if (hi - lo >= 170 || hi - lo < 25) return g;
+  const k = 255 / (hi - lo);
+  const d = new Uint8Array(g.d.length);
+  for (let i = 0; i < d.length; i++) d[i] = Math.max(0, Math.min(255, (g.d[i] - lo) * k));
+  return { w: g.w, h: g.h, d };
 }
 
 function grayToRgba(g: Gray): Uint8ClampedArray {
@@ -104,7 +117,7 @@ function findBlobs(g: Gray, minArea: number, maxArea: number, win: number): Blob
       const xa = Math.max(0, x - r), xb = Math.min(w, x + r + 1);
       const sum = integ[yb * (w + 1) + xb] - integ[ya * (w + 1) + xb] - integ[yb * (w + 1) + xa] + integ[ya * (w + 1) + xa];
       const mean = sum / ((yb - ya) * (xb - xa));
-      dark[y * w + x] = d[y * w + x] < mean * 0.62 && d[y * w + x] < 150 ? 1 : 0;
+      dark[y * w + x] = d[y * w + x] < mean * 0.62 ? 1 : 0;
     }
   }
   const blobs: Blob[] = [];
@@ -160,45 +173,154 @@ function affineFrom(src: P[], dst: P[]): H {
   return [a, b, c, d, e, f, 0, 0, 1];
 }
 
-function locatePage(work: Gray, geo: Geometry, qrCorners: P[]): { h: H; black: number; alignErrorMm: number } | string {
+const CORNER_NAMES = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function invertAffine(a: H): H {
+  const det = a[0] * a[4] - a[1] * a[3];
+  const i0 = a[4] / det, i1 = -a[1] / det, i3 = -a[3] / det, i4 = a[0] / det;
+  return [i0, i1, -(i0 * a[2] + i1 * a[5]), i3, i4, -(i3 * a[2] + i4 * a[5]), 0, 0, 1];
+}
+
+function convex(pts: P[]): boolean {
+  // markers come in order TL, TR, BL, BR; walk TL→TR→BR→BL
+  const q = [pts[0], pts[1], pts[3], pts[2]];
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [a, b, c] = [q[i], q[(i + 1) % 4], q[(i + 2) % 4]];
+    const cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cr) < 1e-6) return false;
+    if (sign && Math.sign(cr) !== sign) return false;
+    sign = Math.sign(cr);
+  }
+  return true;
+}
+
+function locatePage(work: Gray, geo: Geometry, qrCorners: P[], marks: Mark[]): { h: H; black: number; alignErrorMm: number } | string {
   const q = geo.qr;
   const qrPage: P[] = [[q.x, q.y], [q.x + q.w, q.y], [q.x + q.w, q.y + q.h], [q.x, q.y + q.h]];
   const approx = affineFrom(qrPage, qrCorners);
   const ppm = scaleAt(approx, q.x, q.y);
-  if (ppm < 2.5) return 'The photo resolution is too low. Move closer or use a higher resolution.';
+  if (ppm < 2.5) return 'The photo is too small to read. Move the phone closer so the page fills the picture, or use a higher resolution.';
   const A = (geo.markerSize * ppm) ** 2;
-  const blobs = findBlobs(work, A * 0.3, A * 3, geo.markerSize * ppm * 5);
-  const used = new Set<Blob>();
-  const names = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-  const found: P[] = [];
-  for (let i = 0; i < 4; i++) {
-    const [px, py] = apply(approx, ...geo.markers[i]);
-    let best: Blob | null = null;
-    let bestD = 60 * ppm;
-    for (const b of blobs) {
-      if (used.has(b)) continue;
-      const dd = Math.hypot(b.cx - px, b.cy - py);
-      if (dd < bestD) { bestD = dd; best = b; }
-    }
-    if (!best) return `Could not find the ${names[i]} corner square. Make sure all four black squares are in the photo.`;
-    used.add(best);
-    found.push([best.cx, best.cy]);
-  }
-  const h = solveHomography(geo.markers, found);
-  const qc = apply(h, q.x + q.w / 2, q.y + q.h / 2);
+  const blobs = findBlobs(work, A * 0.18, A * 5, geo.markerSize * ppm * 5);
+  const inv = invertAffine(approx);
+  const cands = blobs.map((b) => ({ b, uv: apply(inv, b.cx, b.cy) }));
+  const qc: P = [q.x + q.w / 2, q.y + q.h / 2];
   const mid = qrCorners.reduce<P>((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0]);
-  const alignErrorMm = Math.hypot(qc[0] - mid[0], qc[1] - mid[1]) / scaleAt(h, q.x, q.y);
-  if (alignErrorMm > 4) return 'The page could not be aligned reliably (corner squares and code disagree). Retake the photo flat and straight.';
-  let black = 0;
-  for (const [mx, my] of geo.markers) {
-    let s = 0;
-    for (let k = 0; k < 9; k++) {
-      const [x, y] = apply(h, mx + ((k % 3) - 1) * 1.5, my + (((k / 3) | 0) - 1) * 1.5);
-      s += sample(work, x, y);
+  const check = (h: H) => Math.hypot(apply(h, ...qc)[0] - mid[0], apply(h, ...qc)[1] - mid[1]) / scaleAt(h, q.x, q.y);
+  const dirs: P[] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+  const areaOf = (pt: P) => blobs.find((b) => b.cx === pt[0] && b.cy === pt[1])?.area ?? 0;
+  /** Corner blobs must be the size a corner square would be at that spot in the photo. */
+  const sizesOk = (h: H, pts: (P | null)[]) =>
+    pts.every((pt, i) => {
+      if (!pt) return true;
+      const ratio = areaOf(pt) / (geo.markerSize * scaleAt(h, ...geo.markers[i])) ** 2;
+      return ratio > 0.45 && ratio < 2.2;
+    });
+  /** Printed bubble outlines must sit where this alignment says they are. */
+  const outlinesOk = (h: H) => outlineEvidence(work, h, marks, geo.markR) > OUTLINE_MIN;
+
+  // outermost marker-like blob near each corner: tolerant of strong tilt
+  const extreme = (win: number) => {
+    const out: (P | null)[] = [];
+    for (let i = 0; i < 4; i++) {
+      const [mx, my] = geo.markers[i];
+      let best: (typeof cands)[number] | null = null;
+      let bestS = -Infinity;
+      for (const c of cands) {
+        if (Math.hypot(c.uv[0] - mx, c.uv[1] - my) > win) continue;
+        const sc = dirs[i][0] * c.uv[0] + dirs[i][1] * c.uv[1];
+        if (sc > bestS) { bestS = sc; best = c; }
+      }
+      out.push(best ? [best.b.cx, best.b.cy] : null);
     }
-    black += s / 9 / 4;
+    return out;
+  };
+  const allFour = (pts: (P | null)[]) => {
+    const miss = pts.findIndex((p) => !p);
+    return miss < 0 ? (pts as P[]) : CORNER_NAMES[miss];
+  };
+  const attempts: (() => P[] | string)[] = [
+    () => allFour(extreme(95)),
+    () => allFour(extreme(160)),
+    // nearest blob to the predicted spot: robust to clutter outside the page
+    () => {
+      const out: P[] = [];
+      for (let i = 0; i < 4; i++) {
+        const [px, py] = apply(approx, ...geo.markers[i]);
+        let best: Blob | null = null;
+        let bestD = 60 * ppm;
+        for (const b of blobs) {
+          const dd = Math.hypot(b.cx - px, b.cy - py);
+          if (dd < bestD) { bestD = dd; best = b; }
+        }
+        if (!best) return CORNER_NAMES[i];
+        out.push([best.cx, best.cy]);
+      }
+      return out;
+    },
+  ];
+
+  let missing = '';
+  const finish = (h: H, alignErrorMm: number) => {
+    let black = 0;
+    for (const [mx, my] of geo.markers) {
+      let s = 0;
+      for (let k = 0; k < 9; k++) {
+        const [x, y] = apply(h, mx + ((k % 3) - 1) * 1.5, my + (((k / 3) | 0) - 1) * 1.5);
+        s += sample(work, x, y);
+      }
+      black += s / 9;
+    }
+    return { h, black: black / 4, alignErrorMm };
+  };
+  for (const attempt of attempts) {
+    const found = attempt();
+    if (typeof found === 'string') { missing ||= found; continue; }
+    if (!convex(found)) continue;
+    let h = solveHomography(geo.markers, found);
+    // refine: snap each corner to the blob nearest its predicted position
+    const snapped = geo.markers.map(([mx, my], i) => {
+      const [px, py] = apply(h, mx, my);
+      let best = found[i];
+      let bestD = 6 * scaleAt(h, mx, my);
+      for (const b of blobs) {
+        const dd = Math.hypot(b.cx - px, b.cy - py);
+        if (dd < bestD) { bestD = dd; best = [b.cx, b.cy]; }
+      }
+      return best;
+    });
+    h = solveHomography(geo.markers, snapped);
+    const alignErrorMm = check(h);
+    if (alignErrorMm > 4 || !sizesOk(h, snapped) || !outlinesOk(h)) continue;
+    return finish(h, alignErrorMm);
   }
-  return { h, black, alignErrorMm };
+  // One corner square cropped off or covered: three corners plus the code's four corners still pin the page down.
+  for (const win of [95, 160]) for (let drop = 0; drop < 4; drop++) {
+    const pts = extreme(win);
+    pts[drop] = null;
+    const have = pts.map((p, i) => (p ? i : -1)).filter((i) => i >= 0);
+    if (have.length !== 3) continue;
+    const src: P[] = [...have.map((i) => geo.markers[i]), ...qrPage];
+    const dst: P[] = [...have.map((i) => pts[i]!), ...qrCorners];
+    const h = solveHomography(src, dst);
+    const err = Math.max(...have.map((i) => Math.hypot(apply(h, ...geo.markers[i])[0] - pts[i]![0], apply(h, ...geo.markers[i])[1] - pts[i]![1]) / scaleAt(h, ...geo.markers[i])));
+    if (err > 2.5 || !sizesOk(h, pts) || !outlinesOk(h)) continue;
+    let black = 0;
+    for (const i of have) {
+      const [mx, my] = geo.markers[i];
+      let s = 0;
+      for (let k = 0; k < 9; k++) {
+        const [x, y] = apply(h, mx + ((k % 3) - 1) * 1.5, my + (((k / 3) | 0) - 1) * 1.5);
+        s += sample(work, x, y);
+      }
+      black += s / 9 / 3;
+    }
+    return { h, black, alignErrorMm: err };
+  }
+  return missing
+    ? `Couldn't line the page up: the ${missing} black corner square isn't visible. Hold the phone straight above the page with all four black squares in the photo and a little margin around them.`
+    : "Couldn't line the page up. Lay the sheet flat, hold the phone straight above it, and keep all four black corner squares in the photo.";
 }
 
 const RING = Array.from({ length: 24 }, (_, i) => [Math.cos((i / 24) * 2 * Math.PI), Math.sin((i / 24) * 2 * Math.PI)]);
@@ -241,17 +363,33 @@ function refineOffset(g: Gray, h: H, marks: Mark[], R: number): [number, number]
   return best;
 }
 
-function markDarkness(g: Gray, h: H, m: Mark, R: number, dx: number, dy: number, black: number): number {
-  const vals: number[] = [];
-  const ri = R * 0.55;
-  for (let ix = -4; ix <= 4; ix++)
-    for (let iy = -4; iy <= 4; iy++) {
-      const ox = (ix / 4) * ri, oy = (iy / 4) * ri;
-      if (m.shape === 'circle' && ox * ox + oy * oy > ri * ri) continue;
-      const [x, y] = apply(h, m.x + dx + ox, m.y + dy + oy);
-      vals.push(sample(g, x, y));
-    }
-  const inner = vals.reduce((a, b) => a + b, 0) / vals.length;
+export const OUTLINE_MIN = 0.28;
+
+/** Median contrast between the paper just outside each printed outline and the outline itself (0 = no outlines where expected). */
+export function outlineEvidence(g: Gray, h: H, marks: Mark[], R: number): number {
+  if (!marks.length) return 1;
+  const step = Math.max(1, Math.floor(marks.length / 60));
+  const ev: number[] = [];
+  for (let i = 0; i < marks.length; i += step) {
+    const m = marks[i];
+    let best = -1;
+    for (const dx of [-0.8, -0.4, 0, 0.4, 0.8])
+      for (const dy of [-0.8, -0.4, 0, 0.4, 0.8]) {
+        const edge = (ringMean(g, h, m, R - 0.1, dx, dy) + ringMean(g, h, m, R + 0.1, dx, dy)) / 2;
+        const out = ringMean(g, h, m, R * 1.6, dx, dy);
+        best = Math.max(best, (out - edge) / Math.max(30, out));
+      }
+    ev.push(best);
+  }
+  ev.sort((a, b) => a - b);
+  return ev[Math.floor(ev.length / 2)];
+}
+
+/**
+ * How marked a bubble is, 0..1. Combines mean darkness of the centre (good for filled circles)
+ * with how much of the inside has real ink (good for thin ticks and crosses).
+ */
+function markScore(g: Gray, h: H, m: Mark, R: number, dx: number, dy: number, black: number): number {
   const outer: number[] = [];
   for (const r of [R * 1.45, R * 1.75]) for (const [c, sn] of RING) {
     const [x, y] = apply(h, m.x + dx + c * r, m.y + dy + sn * r);
@@ -260,7 +398,23 @@ function markDarkness(g: Gray, h: H, m: Mark, R: number, dx: number, dy: number,
   outer.sort((a, b) => a - b);
   const white = outer[Math.floor(outer.length * 0.85)];
   if (white - black < 25) return 0;
-  return Math.min(1, Math.max(0, (white - inner) / (white - black)));
+  const strict = white - 0.5 * (white - black);
+  let sumC = 0, nC = 0, ink = 0, nI = 0;
+  const rc = R * 0.55, ri = R * 0.74;
+  for (let ix = -6; ix <= 6; ix++)
+    for (let iy = -6; iy <= 6; iy++) {
+      const ox = (ix / 6) * ri, oy = (iy / 6) * ri;
+      const d2 = ox * ox + oy * oy;
+      if (m.shape === 'circle' && d2 > ri * ri) continue;
+      const [x, y] = apply(h, m.x + dx + ox, m.y + dy + oy);
+      const v = sample(g, x, y);
+      nI++;
+      if (v < strict) ink++;
+      if (m.shape === 'circle' ? d2 <= rc * rc : Math.abs(ox) <= rc && Math.abs(oy) <= rc) { sumC += v; nC++; }
+    }
+  const dark = Math.min(1, Math.max(0, (white - sumC / nC) / (white - black)));
+  const coverage = Math.min(1, (ink / nI) * 2.4);
+  return Math.max(dark, coverage);
 }
 
 function decideChoice(scores: number[]): { idx: number; flag?: Flag } {
@@ -288,28 +442,56 @@ export function cropRegion(g: Gray, h: H, r: Rect, ppmOut = 6, pad = 1.5): Gray 
   return { w, h: hh, d };
 }
 
-function inkFraction(g: Gray, h: H, r: Rect, black: number): number {
-  let dark = 0, n = 0;
-  for (let y = r.y + 1.5; y < r.y + r.h - 1.5; y += 0.5)
-    for (let x = r.x + 1.5; x < r.x + r.w - 1.5; x += 0.5) {
-      const [sx, sy] = apply(h, x, y);
-      n++;
-      if (sample(g, sx, sy) < black + 70) dark++;
+/** Amount of handwriting in an open-answer box (mm² of connected ink), measured against the local paper colour. */
+function inkArea(g: Gray, h: H, r: Rect): number {
+  const step = 0.35;
+  const nx = Math.max(0, Math.floor((r.w - 3) / step)), ny = Math.max(0, Math.floor((r.h - 3) / step));
+  if (!nx || !ny) return 0;
+  const vals = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) {
+      const [sx, sy] = apply(h, r.x + 1.5 + i * step, r.y + 1.5 + j * step);
+      vals[j * nx + i] = sample(g, sx, sy);
     }
-  return n ? dark / n : 0;
+  // local paper brightness: max over ±1 mm, which erases thin ruled lines and pen strokes
+  const rad = 3;
+  const rowMax = new Float32Array(nx * ny);
+  const paper = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) {
+      let m = 0;
+      for (let d = Math.max(0, i - rad); d <= Math.min(nx - 1, i + rad); d++) m = Math.max(m, vals[j * nx + d]);
+      rowMax[j * nx + i] = m;
+    }
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) {
+      let m = 0;
+      for (let d = Math.max(0, j - rad); d <= Math.min(ny - 1, j + rad); d++) m = Math.max(m, rowMax[d * nx + i]);
+      paper[j * nx + i] = m;
+    }
+  const ink = (k: number) => vals[k] < paper[k] * 0.72;
+  let n = 0;
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (!ink(k)) continue;
+      const nb = (i > 0 && ink(k - 1)) || (i < nx - 1 && ink(k + 1)) || (j > 0 && ink(k - nx)) || (j < ny - 1 && ink(k + nx));
+      if (nb) n++;
+    }
+  return n * step * step;
 }
 
 export type Lookup = (sheet: SheetId) => Version | string;
 
 export function scanPage(img: RGBA, lookup: Lookup): PageScan {
-  const work = toGray(img, WORK_SIDE);
+  const work = stretch(toGray(img, WORK_SIDE));
   const qr = findQr(work, img);
-  if (!qr) return { ok: false, error: 'No Tallyleaf code found on this image. Make sure the whole page is visible, in focus and well lit.' };
+  if (!qr) return { ok: false, error: "Couldn't find the code (top right of the sheet). Use one page per photo, keep a margin around the page, avoid glare on the code, and make sure the photo is in focus." };
   const sheet = decodeSheet(qr.text);
-  if (!sheet) return { ok: false, error: 'The code on this page is not a Tallyleaf code.' };
+  if (!sheet) return { ok: false, error: 'This code isn\'t from a Tallyleaf sheet.' };
   const version = lookup(sheet);
   if (typeof version === 'string') return { ok: false, error: version, sheet };
-  const loc = locatePage(work, version.geometry, qr.corners);
+  const loc = locatePage(work, version.geometry, qr.corners, version.fields.filter((f) => f.page === sheet.page).flatMap((f) => f.marks));
   if (typeof loc === 'string') return { ok: false, error: loc, sheet };
   const { h, black } = loc;
   const R = version.geometry.markR;
@@ -321,9 +503,9 @@ export function scanPage(img: RGBA, lookup: Lookup): PageScan {
 
   for (const f of pageFields) {
     if (f.type === 'text') {
-      const blank = inkFraction(work, h, f.region, black) < 0.004;
-      fields[f.var] = { value: null, flag: blank ? undefined : 'text', scores: [] };
-      if (!blank) crops[f.var] = cropRegion(work, h, f.region);
+      const ink = inkArea(work, h, f.region);
+      fields[f.var] = { value: null, flag: ink < 0.6 ? 'text-empty' : 'text', scores: [ink] };
+      crops[f.var] = cropRegion(work, h, f.region);
       continue;
     }
     const key = f.type === 'check' ? `${f.group}` : f.var;
@@ -332,7 +514,7 @@ export function scanPage(img: RGBA, lookup: Lookup): PageScan {
       offsets.set(key, refineOffset(work, h, groupMarks, R));
     }
     const [dx, dy] = offsets.get(key)!;
-    const scores = f.marks.map((m) => markDarkness(work, h, m, R, dx, dy, black));
+    const scores = f.marks.map((m) => markScore(work, h, m, R, dx, dy, black));
     let res: FieldResult;
     if (f.type === 'check') {
       const s = scores[0];
@@ -359,12 +541,22 @@ export function scanPage(img: RGBA, lookup: Lookup): PageScan {
         digits += String(f.marks[idx[d.idx]].value);
       }
       if (blankAfter) flag = 'unclear';
-      res = { value: digits ? Number(digits) : null, flag: digits ? flag : 'blank', scores };
+      res = { value: digits ? (f.asText ? digits : Number(digits)) : null, flag: digits ? flag : 'blank', scores };
     }
     fields[f.var] = res;
     if (res.flag) crops[f.var] = cropRegion(work, h, f.region);
   }
-  return { ok: true, sheet, version, fields, crops, alignErrorMm: loc.alignErrorMm };
+  // A tick-all question with nothing ticked: skipped, or "none of these"? Ask.
+  const groups = new Map<string, Field[]>();
+  for (const f of pageFields) if (f.type === 'check') groups.set(f.group!, [...(groups.get(f.group!) ?? []), f]);
+  for (const g of groups.values()) {
+    if (g.every((f) => fields[f.var].value === 0 && !fields[f.var].flag)) {
+      for (const f of g) fields[f.var].flag = 'group-empty';
+      crops[g[0].var] = cropRegion(work, h, g[0].region);
+    }
+  }
+  const empty = Object.values(fields).every((r) => r.flag === 'blank' || r.flag === 'group-empty' || r.flag === 'text-empty' || (r.value === 0 && !r.flag));
+  return { ok: true, sheet, version, fields, crops, alignErrorMm: loc.alignErrorMm, empty };
 }
 
 export const fieldsOnPage = (v: Version, page: number): Field[] => v.fields.filter((f) => f.page === page);

@@ -4,6 +4,7 @@ import {
 } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { computeLayout, type DrawOp, type Fonts, type Layout } from './layout';
+import { fingerprint } from './project';
 import { encodeSheet, formatSerial } from './qr';
 import type { FormDef, Project, Version } from './schema';
 
@@ -125,6 +126,8 @@ type RenderOpts = {
   serials: number[];
   attachment?: Uint8Array;
   preview?: boolean;
+  /** Add a blank back page after each copy with an odd page count, so double-sided copies never share a sheet. */
+  duplex?: boolean;
 };
 
 async function renderPdf(o: RenderOpts): Promise<Uint8Array> {
@@ -152,6 +155,11 @@ async function renderPdf(o: RenderOpts): Promise<Uint8Array> {
       page.drawSvgPath(path, { x: qr.x * K, y: PAGE_H - qr.y * K, scale: (qr.w * K) / n, color: grayscale(0), borderWidth: 0 });
       if (o.preview) page.drawText('PREVIEW — not for printing', { x: 60 * K, y: PAGE_H - 33 * K, size: 8, font: f.bold, color: grayscale(0.5) });
     });
+    if (o.duplex && templates.length % 2 === 1 && templates.length > 1) {
+      const blank = doc.addPage([PAGE_W, PAGE_H]);
+      const t = 'This side is intentionally blank';
+      blank.drawText(t, { x: (PAGE_W - f.regular.widthOfTextAtSize(t, 9)) / 2, y: PAGE_H / 2, size: 9, font: f.regular, color: grayscale(0.6) });
+    }
   }
 
   doc.setTitle(o.form.title || 'Questionnaire');
@@ -174,12 +182,14 @@ export async function previewPdf(form: FormDef): Promise<{ bytes: Uint8Array; pa
 }
 
 /** Print-ready PDF for one batch of serials of a frozen version. */
-export async function batchPdf(project: Project, version: Version, from: number, to: number): Promise<Uint8Array> {
+export async function batchPdf(project: Project, version: Version, from: number, to: number, duplex = false): Promise<Uint8Array> {
   const layout = await layoutForm(version.form);
+  if (fingerprint(layout) !== version.fp)
+    throw new Error('This batch was laid out by an older version of Tallyleaf, so reprinting it could put bubbles in different places than the scanner expects. Print a new batch instead.');
   const serials = Array.from({ length: to - from + 1 }, (_, i) => from + i);
   const forFile: Project = { ...project, responses: [] };
   const attachment = new TextEncoder().encode(JSON.stringify(forFile));
-  return renderPdf({ form: version.form, layout, formId: project.id, fp: version.fp, serials, attachment });
+  return renderPdf({ form: version.form, layout, formId: project.id, fp: version.fp, serials, attachment, duplex });
 }
 
 /** Read the project file embedded in a Tallyleaf PDF, or null if there is none. */

@@ -194,8 +194,8 @@ export function computeLayout(form: FormDef, fonts: Fonts): Layout {
     const qLines = wrap(fonts, `${q}. ${b.text}`, 9.5, CW, true);
     const labels: string[] = multi ? b.options : b.options.map((o) => o.label);
     const items = labels.map((l) => {
-      const text = wrap(fonts, l, 9, CW - 12)[0] ?? '';
-      return { text, w: 2 * R + 2 + fonts.measure(text, 9) + 6 };
+      const lines = wrap(fonts, l, 9, 70);
+      return { lines, w: 2 * R + 2 + Math.max(...lines.map((t) => fonts.measure(t, 9))) + 6 };
     });
     const rowsX: number[][] = [];
     let cur: number[] = [];
@@ -206,24 +206,24 @@ export function computeLayout(form: FormDef, fonts: Fonts): Layout {
       x += it.w;
     });
     rowsX.push(cur);
-    const rowH = 7;
-    const h = qLines.length * lh(9.5) + 1.5 + rowsX.length * rowH;
+    const rowH = (row: number[]) => 7 + (Math.max(...row.map((i) => items[i].lines.length)) - 1) * lh(9);
+    const h = qLines.length * lh(9.5) + 1.5 + rowsX.reduce((a, row) => a + rowH(row), 0);
     ensure(h);
     const top = y;
     y += textLines(qLines, X0, y, 9.5, true) + 1.5;
     const marks: Mark[] = [];
     for (const row of rowsX) {
       let x = X0 + 4;
-      const cy = y + rowH / 2;
+      const cy = y + 3.5;
       for (const i of row) {
         const cx = x + R;
         if (multi) ops.push({ t: 'rect', x: cx - R, y: cy - R, w: 2 * R, h: 2 * R, fill: 1, stroke: INK, lw: LINE });
         else ops.push({ t: 'circle', x: cx, y: cy, r: R, fill: 1, stroke: INK, lw: LINE });
-        ops.push({ t: 'text', x: cx + R + 2, y: cy + asc(9) / 2 - 0.2, size: 9, text: items[i].text, gray: INK });
+        items[i].lines.forEach((t, k) => ops.push({ t: 'text', x: cx + R + 2, y: cy + asc(9) / 2 - 0.2 + k * lh(9), size: 9, text: t, gray: INK }));
         marks.push({ x: cx, y: cy, value: multi ? 1 : (b.options[i] as ScaleOption).value, shape: multi ? 'square' : 'circle' });
         x += items[i].w;
       }
-      y += rowH;
+      y += rowH(row);
     }
     const region: Rect = { x: X0, y: top, w: CW, h: y - top };
     if (multi) {
@@ -270,7 +270,7 @@ export function computeLayout(form: FormDef, fonts: Fonts): Layout {
       y += rowH;
     }
     fields.push({
-      var: b.varName, type: 'digits', label: b.text, page: page(), marks, digits: n,
+      var: b.varName, type: 'digits', label: b.text, page: page(), marks, digits: n, ...(b.keepZeros ? { asText: true } : {}),
       region: { x: X0, y: top, w: Math.min(CW, bx + 9 * step + 6 - X0), h: y - top }, group: b.id,
     });
   }

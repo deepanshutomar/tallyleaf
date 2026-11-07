@@ -1,5 +1,6 @@
 import { zipSync, strToU8 } from 'fflate';
-import { allFields, missingPages, versionIndex } from './project';
+import { allFields, fieldFor, missingPages, versionIndex } from './project';
+import { formatSerial } from './qr';
 import type { Field, Project } from './schema';
 
 export type Cell = string | number | null;
@@ -11,23 +12,27 @@ export function subscales(fields: Field[]): Map<string, Field[]> {
   return m;
 }
 
-/** Reverse-scored value: min + max - v. Raw data is never changed; only scores use this. */
-export const scored = (f: Field, v: number) => (f.reverse && f.min !== undefined && f.max !== undefined ? f.min + f.max - v : v);
+/** Reverse-scored value, using the scale range the participant actually saw. Raw data is never changed. */
+export function scored(latest: Field, printed: Field | undefined, v: number): number {
+  const f = printed ?? latest;
+  return latest.reverse && f.min !== undefined && f.max !== undefined ? f.min + f.max - v : v;
+}
 
 export function dataTable(p: Project, withScores = true): Table {
   const fields = allFields(p);
   const subs = withScores ? subscales(fields) : new Map<string, Field[]>();
-  const header = ['serial', 'version', 'pages_missing', ...fields.map((f) => f.var)];
+  const renumbered = p.responses.some((r) => r.originalSerial !== undefined);
+  const header = ['serial', ...(renumbered ? ['original_serial'] : []), 'version', 'pages_missing', ...fields.map((f) => f.var)];
   for (const s of subs.keys()) header.push(`${s}_sum`, `${s}_mean`, `${s}_n`);
   header.push('unresolved_flags');
   const rows = [...p.responses].sort((a, b) => a.serial - b.serial).map((r) => {
-    const row: Cell[] = [r.serial, versionIndex(p, r.fp), missingPages(p, r).join(' ') || null];
+    const row: Cell[] = [r.serial, ...(renumbered ? [r.originalSerial ?? null] : []), versionIndex(p, r.fp), missingPages(p, r).join(' ') || null];
     for (const f of fields) row.push(r.values[f.var] ?? null);
     for (const items of subs.values()) {
-      const vals = items.map((f) => r.values[f.var]).filter((v): v is number => typeof v === 'number');
-      const sc = items.flatMap((f) => (typeof r.values[f.var] === 'number' ? [scored(f, r.values[f.var] as number)] : []));
+      const onSheet = items.filter((f) => fieldFor(p, r, f.var));
+      const sc = onSheet.flatMap((f) => (typeof r.values[f.var] === 'number' ? [scored(f, fieldFor(p, r, f.var), r.values[f.var] as number)] : []));
       const sum = sc.reduce((a, b) => a + b, 0);
-      row.push(vals.length === items.length ? sum : null, sc.length ? Math.round((sum / sc.length) * 1000) / 1000 : null, sc.length);
+      row.push(onSheet.length && sc.length === onSheet.length ? sum : null, sc.length ? Math.round((sum / sc.length) * 1000) / 1000 : null, sc.length);
     }
     row.push(Object.keys(r.flags).length);
     return row;
@@ -40,54 +45,64 @@ export function codebookTable(p: Project): Table {
   const header = ['variable', 'label', 'type', 'values', 'reverse_scored', 'subscale', 'page'];
   const typeName = { choice: 'single choice', check: 'tick box (0/1)', digits: 'number', text: 'open text' } as const;
   const rows: Cell[][] = [
-    ['serial', 'Participant serial number printed on the sheet', 'number', '', '', '', ''],
+    ['serial', `Participant ID printed on the sheet (serial 7 is printed as "ID ${formatSerial(7)}")`, 'number', '', '', '', ''],
+    ...(p.responses.some((r) => r.originalSerial !== undefined) ? [['original_serial', 'ID printed on the sheet, when two sheets shared an ID and this one was renumbered', 'number', '', '', '', ''] as Cell[]] : []),
     ['version', 'Questionnaire layout version (1 = first printed)', 'number', '', '', '', ''],
     ['pages_missing', 'Pages of this participant not scanned yet', 'text', '', '', '', ''],
     ...fields.map((f): Cell[] => [
-      f.var, f.label, typeName[f.type],
+      f.var, f.label, f.type === 'digits' && f.asText ? 'code (text, keeps leading zeros)' : typeName[f.type],
       f.type === 'choice' || f.type === 'check' ? (f.valueLabels ?? []).map((o) => `${o.value}=${o.label}`).join('; ') : '',
       f.reverse ? 'yes' : '', f.subscale ?? '', f.page,
     ]),
   ];
   for (const [s, items] of subscales(fields)) {
     const list = items.map((f) => f.var + (f.reverse ? ' (R)' : '')).join(', ');
-    rows.push([`${s}_sum`, `Sum of ${list}; blank if any item missing`, 'score', '', '', s, '']);
-    rows.push([`${s}_mean`, `Mean of answered items of ${s}`, 'score', '', '', s, '']);
+    rows.push([`${s}_sum`, `Sum of ${list} (R = reverse-scored); blank if any item is missing`, 'score', '', '', s, '']);
+    rows.push([`${s}_mean`, `Mean of the answered items of ${s}; check ${s}_n before using it`, 'score', '', '', s, '']);
     rows.push([`${s}_n`, `Number of answered items of ${s}`, 'score', '', '', s, '']);
   }
-  rows.push(['unresolved_flags', 'Answers still marked for review', 'number', '', '', '', '']);
+  rows.push(['unresolved_flags', 'Answers still marked for checking', 'number', '', '', '', '']);
   return { header, rows };
 }
 
+export function correctionsTable(p: Project): Table {
+  return {
+    header: ['when', 'serial', 'variable', 'scanner_read', 'changed_to', 'reason'],
+    rows: (p.log ?? []).map((c) => [c.at, c.serial, c.var, c.from, c.to, c.flag ?? 'manual edit']),
+  };
+}
+
+/** One line per cell; text that spreadsheets would run as a formula is neutralised. */
+const flat = (s: string) => s.replace(/\r?\n|\r/g, ' / ');
 const csvCell = (v: Cell) => {
   if (v === null || v === undefined) return '';
-  const s = String(v);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  let s = typeof v === 'string' ? flat(v) : String(v);
+  if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = `'${s}`;
+  return /[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
 export function toCsv(t: Table): string {
-  return '﻿' + [t.header, ...t.rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  return '\ufeff' + [t.header, ...t.rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }
 
-/** SPSS syntax that reads the exported CSV and applies variable and value labels. */
-export function spssSyntax(p: Project, csvName: string): string {
+/** Self-contained SPSS syntax: the data is inside the file, so it runs from any folder. */
+export function spssSyntax(p: Project): string {
   const t = dataTable(p);
   const fields = new Map(allFields(p).map((f) => [f.var, f]));
-  const q = (s: string) => `"${s.replace(/"/g, "''").replace(/\s+/g, ' ').slice(0, 250)}"`;
-  const fmt = (h: string) => (h === 'pages_missing' || fields.get(h)?.type === 'text' ? 'A2000' : h.endsWith('_mean') ? 'F8.3' : 'F8.0');
+  const q = (s: string) => `"${flat(s).replace(/"/g, "'").slice(0, 250)}"`;
+  const width = (col: number) => Math.min(32767, Math.max(8, ...t.rows.map((r) => (r[col] === null ? 0 : new TextEncoder().encode(flat(String(r[col]))).length))));
+  const isText = (h: string) => h === 'pages_missing' || fields.get(h)?.type === 'text' || !!fields.get(h)?.asText;
+  const fmt = (h: string, i: number) => (isText(h) ? `A${width(i)}` : h.endsWith('_mean') ? 'F8.3' : 'F8.0');
+  const cell = (v: Cell, h: string) => (v === null || v === undefined ? '' : isText(h) ? `"${flat(String(v)).replace(/"/g, "'")}"` : String(v));
   const lines = [
-    '* Tallyleaf export. Put this file next to the CSV and run it in SPSS.',
-    `* Edit the path below if SPSS cannot find ${csvName}.`,
-    'GET DATA /TYPE=TXT',
-    `  /FILE=${q(csvName)}`,
-    '  /ENCODING="UTF8"',
-    '  /DELIMITERS=","',
-    `  /QUALIFIER='"'`,
-    '  /ARRANGEMENT=DELIMITED',
-    '  /FIRSTCASE=2',
-    '  /VARIABLES=',
-    ...t.header.map((h) => `    ${h} ${fmt(h)}`),
+    `* Tallyleaf export of "${flat(p.form.title).replace(/"/g, "'")}", ${new Date().toISOString().slice(0, 10)}.`,
+    '* Open this file in SPSS (or PSPP) and choose Run > All. The data is inside, so no other file is needed.',
+    'DATA LIST LIST(",") /',
+    ...t.header.map((h, i) => `  ${h} (${fmt(h, i)})`),
     '.',
+    'BEGIN DATA',
+    ...t.rows.map((r) => r.map((v, i) => cell(v, t.header[i])).join(',')),
+    'END DATA.',
     'VARIABLE LABELS',
     ...codebookTable(p).rows.map((r, i, a) => `  ${r[0]} ${q(String(r[1]))}${i === a.length - 1 ? '.' : ''}`),
   ];

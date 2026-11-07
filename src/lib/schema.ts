@@ -18,7 +18,7 @@ export type Block =
   | { kind: 'likert'; id: string; title: string; options: ScaleOption[]; items: LikertItem[] }
   | { kind: 'single'; id: string; varName: string; text: string; options: ScaleOption[] }
   | { kind: 'multi'; id: string; varName: string; text: string; options: string[] }
-  | { kind: 'number'; id: string; varName: string; text: string; digits: number }
+  | { kind: 'number'; id: string; varName: string; text: string; digits: number; keepZeros?: boolean }
   | { kind: 'open'; id: string; varName: string; text: string; lines: number }
   | { kind: 'pagebreak'; id: string };
 
@@ -47,6 +47,8 @@ export type Field = {
   min?: number;
   max?: number;
   group?: string;
+  /** Digits kept as text, so leading zeros survive (IDs, codes). */
+  asText?: boolean;
 };
 
 export type Geometry = {
@@ -67,9 +69,18 @@ export type Version = {
   fields: Field[];
 };
 
-export type Batch = { id: string; fp: string; from: number; to: number; createdAt: string };
+export type Batch = { id: string; fp: string; from: number; to: number; createdAt: string; by?: string };
 
-export type Flag = 'blank' | 'faint' | 'multiple' | 'unclear' | 'missing-page' | 'text';
+/** A block of serials claimed by one teammate, so two people never print the same IDs. */
+export type Reservation = { id: string; name: string; from: number; to: number };
+
+/** Two different sheets that carry the same serial (found when merging teammates' files). */
+export type Clash = { serial: number; response: Response; source: string; at: string };
+
+/** Every manual change in the Data step, for supervisors and audits. */
+export type Correction = { at: string; serial: number; var: string; from: number | string | null; to: number | string | null; flag?: Flag };
+
+export type Flag = 'blank' | 'faint' | 'multiple' | 'unclear' | 'missing-page' | 'text' | 'text-empty' | 'group-empty';
 
 export type Response = {
   serial: number;
@@ -79,6 +90,8 @@ export type Response = {
   flags: Record<string, Flag>;
   crops: Record<string, string>;
   scannedAt: string;
+  /** Set when this row was given a new ID because another sheet had the same serial. */
+  originalSerial?: number;
 };
 
 export type Project = {
@@ -94,6 +107,11 @@ export type Project = {
   batches: Batch[];
   nextSerial: number;
   responses: Response[];
+  reservations?: Reservation[];
+  /** Serials deleted on purpose, so merging an older file doesn't bring them back. */
+  deleted?: { serial: number; at: string }[];
+  clashes?: Clash[];
+  log?: Correction[];
 };
 
 export function uid(len = 8): string {
@@ -178,24 +196,41 @@ export function blockVars(b: Block): string[] {
   }
 }
 
+const SPSS_RESERVED = new Set(['all', 'and', 'by', 'eq', 'ge', 'gt', 'le', 'lt', 'ne', 'not', 'or', 'to', 'with']);
+export const SYSTEM_COLUMNS = ['serial', 'version', 'pages_missing', 'unresolved_flags'];
+
+function nameProblem(v: string, what: string, maxLen = 64): string | null {
+  if (!VAR_RE.test(v)) return `${what} "${v}" can't be used: start with a letter, then only letters, digits and _ (no spaces or hyphens).`;
+  if (v.length > maxLen) return `${what} "${v}" is too long (max ${maxLen} characters).`;
+  if (SPSS_RESERVED.has(v.toLowerCase())) return `${what} "${v}" is a reserved word in SPSS. Try "${v}_1".`;
+  return null;
+}
+
 export function validateForm(form: FormDef): string[] {
   const errors: string[] = [];
-  const seen = new Set<string>(['serial', 'version', 'pages_scanned', 'unresolved_flags']);
+  const seen = new Set<string>(SYSTEM_COLUMNS);
+  const subscales = new Set<string>();
   for (const b of form.blocks) {
     for (const v of blockVars(b)) {
-      if (!VAR_RE.test(v)) errors.push(`"${v}" is not a valid variable name (start with a letter; letters, digits, _ only).`);
-      else if (seen.has(v.toLowerCase())) errors.push(`Variable name "${v}" is used more than once.`);
+      const bad = nameProblem(v, 'Column name');
+      if (bad) errors.push(bad);
+      else if (SYSTEM_COLUMNS.includes(v.toLowerCase())) errors.push(`Column name "${v}" is used by Tallyleaf itself. Pick another name.`);
+      else if (seen.has(v.toLowerCase())) errors.push(`Column name "${v}" is used more than once.`);
       seen.add(v.toLowerCase());
     }
+    if (b.kind === 'likert') for (const it of b.items) if (it.subscale?.trim()) subscales.add(it.subscale.trim());
     if ((b.kind === 'likert' || b.kind === 'single' || b.kind === 'multi') && b.options.length < 2)
       errors.push(`A question needs at least 2 options (${b.kind === 'likert' ? b.title : b.text}).`);
     if (b.kind === 'likert' && b.items.length === 0) errors.push(`Scale "${b.title}" has no statements.`);
     if ((b.kind === 'likert' || b.kind === 'single') && b.options.length > 10)
       errors.push('Use at most 10 options per question.');
-    if (b.kind === 'likert' && new Set(b.options.map((o) => o.value)).size !== b.options.length)
-      errors.push(`Scale "${b.title}" has duplicate option values.`);
-    if (b.kind === 'single' && new Set(b.options.map((o) => o.value)).size !== b.options.length)
-      errors.push(`"${b.text}" has duplicate option values.`);
+    if ((b.kind === 'likert' || b.kind === 'single') && new Set(b.options.map((o) => o.value)).size !== b.options.length)
+      errors.push(`"${b.kind === 'likert' ? b.title : b.text}" has two options stored as the same number.`);
+  }
+  for (const sub of subscales) {
+    const bad = nameProblem(sub, 'Subscale name', 59);
+    if (bad) errors.push(bad);
+    for (const suffix of ['_sum', '_mean', '_n']) if (seen.has(`${sub}${suffix}`.toLowerCase())) errors.push(`Column "${sub}${suffix}" clashes with the score Tallyleaf adds for subscale "${sub}".`);
   }
   if (!form.blocks.some((b) => blockVars(b).length > 0)) errors.push('Add at least one question.');
   return errors;
