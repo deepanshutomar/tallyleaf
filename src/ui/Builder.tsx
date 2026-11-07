@@ -25,7 +25,7 @@ function varRange(b: Block): string {
 }
 const NAME = Object.fromEntries(KINDS.map(([k, n]) => [k, n])) as Record<BlockKind, string>;
 
-export function Builder({ project, update, onNext }: { project: Project; update: Update; onNext: () => void }) {
+export function Builder({ project, update, onNext, onGoogleForm }: { project: Project; update: Update; onNext: () => void; onGoogleForm: () => void }) {
   const form = project.form;
   const printed = useMemo(() => printedFields(project), [project]);
   const errors = useMemo(() => [...validateForm(form), ...lockConflicts(project, form)], [form, project]);
@@ -114,7 +114,10 @@ export function Builder({ project, update, onNext }: { project: Project; update:
         {errors.length > 0 && form.blocks.length > 0 && (
           <div className="note warn"><b>Fix before printing:</b><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>
         )}
-        <div className="row end"><button className="primary" onClick={onNext}>Print copies →</button></div>
+        <div className="row end">
+          <button className="ghost" onClick={onGoogleForm} disabled={!form.blocks.some((b) => blockVars(b).length)} title="Also run it online: get a script that builds the same questionnaire in Google Forms">Make a Google Form version</button>
+          <button className="primary" onClick={onNext}>Print copies →</button>
+        </div>
       </div>
       <div className="sticky"><Preview form={form} /></div>
     </div>

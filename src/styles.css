@@ -178,7 +178,13 @@ dialog.help::backdrop { background: rgb(43 27 23 / 45%); }
 .pagehead .lead { color: var(--muted); font-size: 1.05rem; max-width: 40rem; margin: 0; }
 .pagehead .lead b { color: var(--ink); font-weight: 600; }
 .pagehead-art { margin-top: 1rem; }
-.cta { display: flex; flex-wrap: wrap; gap: .7rem 1rem; align-items: center; }
+.cta { display: flex; flex-wrap: wrap; gap: .8rem 1rem; align-items: center; }
+.cta-more { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: 1.1rem !important; font-size: .95rem; }
+.cta-more .dotsep { color: var(--faint); }
+.burger { display: none; }
+.top-brand { display: inline-flex; }
+dialog.gform { width: min(660px, calc(100vw - 32px)); }
+dialog.gform .help-steps li { margin-bottom: .5rem; }
 .cta > button:not(.link) { flex: 1 1 100%; }
 
 .note { padding: .7rem .9rem; border-radius: var(--r); font-size: .92rem; background: var(--panel); border: 1px solid var(--line); }
@@ -475,8 +481,14 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); box-shado
     background-image: var(--grain), linear-gradient(180deg, #6f2020, #571818);
     padding: 1.4rem .9rem 1rem;
   }
-  .sidebar .brand { color: #fff; font-size: 1.85rem; padding: 0 .6rem; }
-  .sidebar .brand small { color: var(--rose); opacity: 1; font-size: .6rem; margin-top: .15rem; }
+  .sidebar > * { flex-shrink: 0; }
+  .sidebar .brand { color: #fff; font-size: 1.85rem; line-height: 1.05; padding: .1rem .6rem .9rem; margin-bottom: .2rem; border-bottom: 1px solid rgb(248 233 225 / 18%); width: 100%; }
+  .sidebar .brand small { color: var(--rose); opacity: 1; font-size: .6rem; margin-top: .35rem; line-height: 1.3; }
+  .burger { display: inline-flex; margin-left: -.6rem; }
+  .top-brand { display: none; }
+  .shell.side-hidden { grid-template-columns: minmax(0, 1fr); }
+  .shell.side-hidden .sidebar { display: none; }
+  .shell.side-hidden .top-brand { display: inline-flex; }
   .side-nav, .side-foot { display: flex; flex-direction: column; gap: .2rem; }
   .side-nav button, .side-foot button { justify-content: flex-start; background: none; border: 0; color: var(--on-wine); font-size: .98rem; padding: .65rem .8rem; border-radius: 10px; position: relative; }
   .side-nav button small { margin-left: auto; font: .7rem var(--mono); opacity: .6; }
@@ -495,7 +507,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); box-shado
   .side-project small { opacity: .65; font-size: .76rem; }
   .side-new { justify-content: flex-start; background: none; border: 0; color: var(--on-wine); font-size: .9rem; padding: .5rem .8rem; opacity: .85; }
   .side-new:hover:not(:disabled) { background: rgb(255 255 255 / 8%); opacity: 1; }
-  .sprig { width: 120px; margin: auto auto 0 3.5rem; color: var(--rose); opacity: .55; flex: none; }
+  .sprig { width: 120px; margin: auto auto 0 3.5rem; color: var(--rose); opacity: .55; flex: 0 1 auto !important; min-height: 0; }
   .side-foot .unsaved { top: 50%; right: .8rem; transform: translateY(-50%); box-shadow: none; }
 
   .topbar { padding: .8rem 2.2rem; gap: 1.5rem; flex-wrap: nowrap; background: rgb(246 238 231 / 94%); }
@@ -520,4 +532,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); box-shado
 
 @media (max-width: 1023px) {
   .pagehead-art .sheetart-wrap { max-width: 300px; }
+}
+@media (min-width: 1024px) and (max-height: 760px) {
+  .sprig { display: none; }
 }

@@ -8,10 +8,11 @@ import { Icon, Sprig, type IconName } from './ui/art';
 import { About, Heart, SOCIALS } from './ui/About';
 import { Builder } from './ui/Builder';
 import { DataView } from './ui/Data';
-import { Home } from './ui/Home';
+import { Home, readProjectFile, withLocalCopy } from './ui/Home';
+import { GoogleFormDialog } from './ui/GoogleForm';
 import { Print } from './ui/Print';
 import { Scan } from './ui/Scan';
-import { DialogHost, promptDialog } from './ui/dialog';
+import { DialogHost, alertDialog, promptDialog } from './ui/dialog';
 
 export type Update = (fn: (p: Project) => Project) => void;
 export type Tab = 'build' | 'print' | 'scan' | 'data';
@@ -41,6 +42,10 @@ export function App() {
   const [booted, setBooted] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [menu, setMenu] = useState(false);
+  const [gform, setGform] = useState(false);
+  const [sideHidden, setSideHidden] = useState(() => { try { return localStorage.getItem('tallyleaf:side') === 'hidden'; } catch { return false; } });
+  const fileRef = useRef<HTMLInputElement>(null);
+  const toggleSide = () => setSideHidden((h) => { try { localStorage.setItem('tallyleaf:side', h ? 'shown' : 'hidden'); } catch { /* blocked */ } return !h; });
   const [about, setAbout] = useState(false);
   const [saveError, setSaveError] = useState('');
   const projectRef = useRef<Project | null>(null);
@@ -110,6 +115,17 @@ export function App() {
     if (t !== null && t.trim()) update((p) => ({ ...p, form: { ...p.form, title: t.trim() } }));
   };
 
+  const pickProjectFile = () => { setMenu(false); fileRef.current?.click(); };
+  const openProjectFile = async (file: File) => {
+    try {
+      const { project: p, note } = await withLocalCopy(await readProjectFile(file));
+      if (note) await alertDialog('Project combined', note);
+      open(p);
+    } catch (e) {
+      await alertDialog("Couldn't open that file", (e as Error).message);
+    }
+  };
+
   if (!booted) return null;
   const notes = project ? stepNotes(project) : null;
   const unsaved = !!project && (!project.lastFileSaveAt || project.updatedAt > project.lastFileSaveAt);
@@ -117,7 +133,9 @@ export function App() {
   const showAbout = () => { setAbout(true); setMenu(false); };
 
   return (
-    <div className="shell">
+    <div className={`shell ${sideHidden ? 'side-hidden' : ''}`}>
+      <input ref={fileRef} type="file" hidden accept=".tallyleaf,.psyform,.json,.pdf,application/json,application/pdf"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openProjectFile(f); }} />
       <aside className="sidebar grain">
         <button className="brand" onClick={goHome}>Tallyleaf<small>paper-to-data research tool</small></button>
         <nav className="side-nav" aria-label="Main">
@@ -138,6 +156,7 @@ export function App() {
             </button>
           ))}
           <button className="side-new" onClick={() => open(newProject())}><Icon name="plus" size={16} />New project</button>
+          <button className="side-new" onClick={pickProjectFile}><Icon name="folder" size={16} />Open project file</button>
         </div>
         <Sprig />
         <div className="side-foot">
@@ -149,7 +168,10 @@ export function App() {
 
       <div className="main-col">
         <header className="topbar">
-          <button className="brand mobile-only" onClick={goHome}>Tallyleaf</button>
+          <button className="icon-btn ghost burger" onClick={toggleSide} aria-label={sideHidden ? 'Show sidebar' : 'Hide sidebar'} aria-expanded={!sideHidden} title={sideHidden ? 'Show sidebar' : 'Hide sidebar'}>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          </button>
+          <button className="brand top-brand" onClick={goHome}>Tallyleaf</button>
           {project && !about ? (
             <>
               <div className="title-menu">
@@ -160,6 +182,8 @@ export function App() {
                   <div className="menu grain" role="menu">
                     <button role="menuitem" onClick={rename}>Rename</button>
                     <button role="menuitem" onClick={() => { saveFile(); setMenu(false); }}>Save project file{unsaved ? ' (unsaved changes)' : ''}</button>
+                    <button role="menuitem" onClick={pickProjectFile}>Open another project file…</button>
+                    <button role="menuitem" onClick={() => { setMenu(false); setGform(true); }}>Make a Google Form version…</button>
                     <button role="menuitem" onClick={goHome}>Close and go home</button>
                   </div>
                 )}
@@ -191,7 +215,7 @@ export function App() {
           )}
           {about && <About />}
           {!about && !project && <Home onOpen={open} projects={projects} onRemoved={refreshList} onAbout={showAbout} />}
-          {!about && project && tab === 'build' && <Builder project={project} update={update} onNext={() => setTab('print')} />}
+          {!about && project && tab === 'build' && <Builder project={project} update={update} onNext={() => setTab('print')} onGoogleForm={() => setGform(true)} />}
           {!about && project && tab === 'print' && <Print project={project} update={update} saveFile={saveFile} />}
           {!about && project && tab === 'scan' && <Scan project={project} update={update} onDone={() => setTab('data')} saveFile={saveFile} />}
           {!about && project && tab === 'data' && <DataView project={project} update={update} />}
@@ -216,6 +240,7 @@ export function App() {
       </nav>
 
       <DialogHost />
+      {project && <GoogleFormDialog form={project.form} open={gform} onClose={() => setGform(false)} />}
       <dialog ref={help} className="help grain" onClick={(e) => e.target === help.current && help.current.close()}>
         <div className="row"><h2 className="grow" style={{ margin: 0 }}>How Tallyleaf works</h2><button className="icon-btn" aria-label="Close" onClick={() => help.current?.close()}><Icon name="x" /></button></div>
         <ol className="help-steps">

@@ -6,6 +6,25 @@ Made for psychology students who have spent a weekend typing questionnaires into
 
 ![Tallyleaf home screen](docs/screenshots/home.webp)
 
+## Why Tallyleaf exists
+
+Paper is still the easiest way to run a questionnaire: in a classroom, a clinic waiting room, a village survey, with older participants, or anywhere without reliable internet. The painful part comes afterwards. Someone types every answer into SPSS or Excel by hand, cell by cell, then double-checks for typos and recodes the reverse-scored items. For a 40-item questionnaire and 200 participants that is 8,000 cells, often a full weekend, and every typo goes straight into the analysis.
+
+Machines that read bubble sheets have existed since the 1930s, but they need special pre-printed forms, scanners or paid software that students rarely have.
+
+## What you get for free
+
+To our knowledge, no other free tool does all of this in a browser, without installing anything:
+
+- **Design and scan in one place.** You build the questionnaire, Tallyleaf prints it, and the same project reads it back. No separate form designer, template files or calibration step.
+- **Any phone camera works.** No scanner needed. Pages can be photographed tilted, unevenly lit, in any order and mixed between participants; each page finds its own participant through its code.
+- **Ready for analysis.** Column names you choose, value labels, reverse-scored subscale sums and means, a codebook, and an SPSS file that runs as is. Not just "option B was ticked".
+- **Honest about uncertainty.** Faint, doubled or skipped marks are flagged with a picture of the original. A page that can't be lined up safely is rejected with a reason instead of producing wrong numbers. Every manual correction is logged for your supervisor.
+- **Private by design.** No account, no server, no upload. Participant data never leaves your device, which keeps ethics applications simple.
+- **Built for teams.** Split the printing with ID ranges per teammate, scan in parallel, merge the files. Clashes are shown, never silently dropped.
+- **Paper and online together.** The same questionnaire can also become a Google Form for participants who prefer answering online.
+- **Free and open source** (MIT): for coursework, theses and published research.
+
 ## What it does
 
 1. **Build**: rating scales (Likert grids), single choice, tick-all-that-apply, numbers/codes (digit bubbles), open answers, headings, instructions and page breaks. Each question gets a column name, stored values, reverse-scoring and a subscale. A live preview shows the real printed pages.
@@ -78,9 +97,26 @@ You only need a browser. Chrome, Edge, Safari and Firefox all work, on a laptop 
    - **SPSS (.sps)**: open in SPSS or PSPP and choose *Run → All*. The data and all variable and value labels are inside the file.
    - **CSV** for R: `read.csv("my-study.csv")`.
 
+### Make a Google Form version (optional)
+
+Some participants may prefer to answer online. Tallyleaf can't upload anything to Google itself (it never sends data anywhere), so it gives you a small script that builds the same questionnaire in **your own** Google account. No coding needed:
+
+1. In **Build**, click **Make a Google Form version** (also in the title menu at the top). Click **Copy the script**, or download it as a `.gs` file.
+2. Go to [script.google.com](https://script.google.com) and sign in with the Google account that should own the form.
+3. Click **New project** (top left).
+4. Delete everything in the editor, then paste the script. (If you downloaded the `.gs` file, open it in Notepad or TextEdit and copy all of it.)
+5. Click the **Save** icon (floppy disk). Next to the **Debug** button, make sure **createForm** is selected, then click **Run**.
+6. Google asks for permission: click **Review permissions** and choose your account. If you see *"Google hasn't verified this app"*, click **Advanced**, then **Go to Untitled project (unsafe)**. It is your own script, so this is safe. Click **Allow**.
+7. After a few seconds the **Execution log** at the bottom shows two links: one to **edit** the form and one to **send to participants**. The form also appears in your Google Drive.
+
+Good to know:
+- Rating scales become *multiple-choice grids*, the closest thing Google Forms has to a paper rating table.
+- Google Forms stores answers as words ("Agree"), not numbers. The comments in the script list the numbers Tallyleaf uses for every option, so you can recode the Google Sheets responses the same way as your paper data.
+- Running the script twice makes two separate forms.
+
 ### Keep your project file
 Your work is saved in the browser automatically, but browsers can clear their storage. Use **Save project file** (sidebar, or the save icon on a phone) to download a `.tallyleaf` file:
-- Open it on any device (home screen → *Open a project file*) to keep working or to scan there.
+- Open it on any device to keep working or to scan there: **Open project file** is on the home screen, in the sidebar under *Projects*, and in the title menu at the top.
 - A teammate can scan the other half of the pile and send you their file; use **Merge a teammate's file** in Data.
 - It contains participants' answers and pictures of their handwriting, so store and share it like research data.
 - Lost it? Opening any PDF Tallyleaf generated restores the questions and print history (not the scanned answers).
@@ -170,6 +206,23 @@ The [GitHub Desktop](https://desktop.github.com) app is an easier alternative: *
 - Tested on simulated photos only so far; a field validation on real sheets is planned.
 - The PDF font covers Latin characters; Hindi and other scripts are planned.
 - Handwriting is not read automatically; you type open answers while looking at the picture.
+
+## What's new
+
+**0.1 (November 2026)**: first public version.
+- Questionnaire builder with live print preview; numbered A4 printing; phone and scanner reading in any order; checking flagged answers; Excel, CSV, codebook and self-contained SPSS export.
+- Scanner hardening after an internal review of 47 difficult cases (tilted, dark, washed-out, blurred, cropped, glare, pencil, thin ticks):
+  - 40 are now read correctly, and **none produces a wrong answer silently**. Unsafe photos are rejected with a reason.
+  - Tilt tolerance went from about 15% to about 30%, and a page with one corner square cut off is still read.
+  - Thin ballpoint ticks and crosses are read without flags.
+  - Handwritten answers are never dropped.
+- Data safety:
+  - Values of printed questions are locked, so old and new sheets always mean the same thing.
+  - Teammates get their own ID ranges, and merging never drops or splices participants.
+  - Blank printouts are skipped, scan sessions can be undone, and deleted participants stay deleted.
+  - Every manual correction goes into a log.
+- Phone-first design with a bottom tab bar and a review panel that slides up from the bottom; a collapsible sidebar on desktop.
+- Google Form export via a guided Apps Script.
 
 ## Contributing
 

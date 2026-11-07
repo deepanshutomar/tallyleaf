@@ -60,13 +60,16 @@ export function Home({ onOpen, projects, onRemoved, onAbout }: { onOpen: (p: Pro
       />
       <div className="cta">
         <button className="primary big" onClick={() => onOpen(newProject())}><Icon name="plus" />Start a questionnaire</button>
-        <button onClick={() => fileRef.current?.click()}><Icon name="folder" />Open a project file</button>
-        <button className="link" onClick={() => onOpen(exampleProject())}>or try the GAD-7 example</button>
+        <button className="big" onClick={() => fileRef.current?.click()}><Icon name="folder" />Open a project file</button>
         <input ref={fileRef} type="file" hidden accept=".tallyleaf,.psyform,.json,.pdf,application/json,application/pdf"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); }} />
       </div>
       {error && <div className="note bad">{error}</div>}
-      <p className="muted small" style={{ margin: 0 }}>New here? <button className="link" onClick={onAbout}>Read what Tallyleaf does and where the idea comes from</button>.</p>
+      <div className="cta-more">
+        <button className="link" onClick={() => onOpen(exampleProject())}>Try the GAD-7 example</button>
+        <span className="dotsep" aria-hidden="true">·</span>
+        <button className="link" onClick={onAbout}>What Tallyleaf does and where the idea comes from</button>
+      </div>
 
       <ol className="callouts panel grain">
         <li><span className="pin">1</span><span><b>Corner squares</b> let a tilted phone photo be straightened.</span></li>
